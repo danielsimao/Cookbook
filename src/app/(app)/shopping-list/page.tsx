@@ -1,19 +1,24 @@
 "use client";
 
 import { Suspense, useEffect, useState, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Check,
   ShoppingCart,
   Loader2,
   RefreshCw,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
 import {
   startOfWeek,
   endOfWeek,
+  addWeeks,
+  subWeeks,
   format,
+  isThisWeek,
 } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/toaster";
@@ -35,13 +40,27 @@ export default function ShoppingListPageWrapper() {
 
 function ShoppingListPage() {
   const searchParams = useSearchParams();
-  const startDate = searchParams.get("startDate") || startOfWeek(new Date(), { weekStartsOn: 1 }).toISOString();
-  const endDate = searchParams.get("endDate") || endOfWeek(new Date(), { weekStartsOn: 1 }).toISOString();
+  const router = useRouter();
+
+  const now = new Date();
+  const weekBase = searchParams.get("startDate")
+    ? new Date(searchParams.get("startDate")!)
+    : now;
+  const weekStart = startOfWeek(weekBase, { weekStartsOn: 1 });
+  const weekEnd = endOfWeek(weekBase, { weekStartsOn: 1 });
+  const startDate = weekStart.toISOString();
+  const endDate = weekEnd.toISOString();
 
   const [ingredients, setIngredients] = useState<MergedIngredient[]>([]);
   const [pantryItems, setPantryItems] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [checked, setChecked] = useState<Set<string>>(new Set());
+
+  function navigateWeek(date: Date) {
+    const ws = startOfWeek(date, { weekStartsOn: 1 });
+    const we = endOfWeek(date, { weekStartsOn: 1 });
+    router.push(`/shopping-list?startDate=${ws.toISOString()}&endDate=${we.toISOString()}`);
+  }
 
   const fetchList = useCallback(async () => {
     setLoading(true);
@@ -92,10 +111,6 @@ function ShoppingListPage() {
         </Link>
         <div className="flex-1">
           <h1 className="font-display text-2xl font-bold hand-underline">Shopping List</h1>
-          <p className="font-hand text-base text-muted-foreground">
-            {format(new Date(startDate), "MMM d")} -{" "}
-            {format(new Date(endDate), "MMM d, yyyy")}
-          </p>
         </div>
         <button
           onClick={fetchList}
@@ -103,6 +118,35 @@ function ShoppingListPage() {
           title="Refresh"
         >
           <RefreshCw className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* Week navigation */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => navigateWeek(subWeeks(weekStart, 1))}
+          className="p-2 rounded-lg hover:bg-secondary transition-colors"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </button>
+        <div className="text-center">
+          <p className="font-hand text-lg font-bold">
+            {format(weekStart, "MMM d")} – {format(weekEnd, "MMM d, yyyy")}
+          </p>
+          {!isThisWeek(weekStart, { weekStartsOn: 1 }) && (
+            <button
+              onClick={() => navigateWeek(new Date())}
+              className="font-hand text-sm text-primary hover:underline"
+            >
+              Back to this week
+            </button>
+          )}
+        </div>
+        <button
+          onClick={() => navigateWeek(addWeeks(weekStart, 1))}
+          className="p-2 rounded-lg hover:bg-secondary transition-colors"
+        >
+          <ChevronRight className="h-5 w-5" />
         </button>
       </div>
 

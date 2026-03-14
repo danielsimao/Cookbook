@@ -62,3 +62,11 @@ model PantryItem {
   id   String @id @default(cuid())
   name String @unique
 }
+
+model ShoppingListCache {
+  id           String   @id @default(cuid())
+  weekStart    DateTime @unique
+  mealPlanHash String
+  items        Json
+  createdAt    DateTime @default(now())
+}
