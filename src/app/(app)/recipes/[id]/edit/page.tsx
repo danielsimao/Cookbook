@@ -7,6 +7,7 @@ import { ArrowLeft, Plus, Trash2, Loader2 } from "lucide-react";
 import { toast } from "@/components/toaster";
 import { SortableStepList } from "@/components/sortable-step-list";
 import { ImageField } from "@/components/image-field";
+import { ComboboxField, MultiComboboxField } from "@/components/combobox-field";
 
 import { UNIT_GROUPS } from "@/lib/units";
 
@@ -34,11 +35,13 @@ export default function EditRecipePage() {
   const [cookTime, setCookTime] = useState("");
   const [cuisine, setCuisine] = useState("");
   const [mealType, setMealType] = useState("");
-  const [tags, setTags] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
   const [isFavorite, setIsFavorite] = useState(false);
   const [ingredients, setIngredients] = useState<IngredientInput[]>([]);
   const [steps, setSteps] = useState<string[]>([]);
+  const [cuisineOptions, setCuisineOptions] = useState<string[]>([]);
+  const [tagOptions, setTagOptions] = useState<string[]>([]);
 
   useEffect(() => {
     fetch(`/api/recipes/${id}`)
@@ -52,7 +55,7 @@ export default function EditRecipePage() {
         setCookTime(recipe.cookTime ? String(recipe.cookTime) : "");
         setCuisine(recipe.cuisine || "");
         setMealType(recipe.mealType || "");
-        setTags(recipe.tags.join(", "));
+        setTags(recipe.tags);
         setNotes(recipe.notes || "");
         setIsFavorite(recipe.isFavorite);
         setIngredients(
@@ -72,6 +75,13 @@ export default function EditRecipePage() {
             .map((s: { text: string }) => s.text)
         );
         setLoading(false);
+        fetch("/api/suggestions")
+          .then((r) => r.json())
+          .then((data) => {
+            setCuisineOptions(data.cuisines);
+            setTagOptions(data.tags);
+          })
+          .catch(() => {});
       })
       .catch(() => {
         toast("Failed to load recipe", "error");
@@ -98,10 +108,7 @@ export default function EditRecipePage() {
           cookTime: cookTime ? parseInt(cookTime) : null,
           cuisine: cuisine || null,
           mealType: mealType || null,
-          tags: tags
-            .split(",")
-            .map((t) => t.trim())
-            .filter(Boolean),
+          tags,
           notes: notes || null,
           isFavorite,
           ingredients: ingredients
@@ -147,7 +154,7 @@ export default function EditRecipePage() {
       </div>
 
       {/* Basic Info */}
-      <div className="paper-card p-6 space-y-4">
+      <div className="paper-card watercolor-wash p-6 space-y-4">
         <h2 className="section-header">Basic Info</h2>
         <div>
           <label className="text-sm font-medium text-muted-foreground">Title *</label>
@@ -155,7 +162,7 @@ export default function EditRecipePage() {
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full mt-1 px-4 py-2.5 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="input-cookbook w-full mt-1"
           />
         </div>
         <div>
@@ -164,26 +171,26 @@ export default function EditRecipePage() {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={2}
-            className="w-full mt-1 px-4 py-2.5 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+            className="input-cookbook w-full mt-1 resize-none"
           />
         </div>
         <ImageField value={imageUrl} onChange={setImageUrl} />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div>
             <label className="text-sm font-medium text-muted-foreground">Servings</label>
-            <input type="number" value={servings} onChange={(e) => setServings(e.target.value)} className="w-full mt-1 px-4 py-2.5 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+            <input type="number" value={servings} onChange={(e) => setServings(e.target.value)} className="input-cookbook w-full mt-1" />
           </div>
           <div>
             <label className="text-sm font-medium text-muted-foreground">Prep (min)</label>
-            <input type="number" value={prepTime} onChange={(e) => setPrepTime(e.target.value)} className="w-full mt-1 px-4 py-2.5 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+            <input type="number" value={prepTime} onChange={(e) => setPrepTime(e.target.value)} className="input-cookbook w-full mt-1" />
           </div>
           <div>
             <label className="text-sm font-medium text-muted-foreground">Cook (min)</label>
-            <input type="number" value={cookTime} onChange={(e) => setCookTime(e.target.value)} className="w-full mt-1 px-4 py-2.5 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+            <input type="number" value={cookTime} onChange={(e) => setCookTime(e.target.value)} className="input-cookbook w-full mt-1" />
           </div>
           <div>
             <label className="text-sm font-medium text-muted-foreground">Meal Type</label>
-            <select value={mealType} onChange={(e) => setMealType(e.target.value)} className="w-full mt-1 px-4 py-2.5 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring">
+            <select value={mealType} onChange={(e) => setMealType(e.target.value)} className="input-cookbook w-full mt-1">
               <option value="">Select...</option>
               {MEAL_TYPES.map((t) => (
                 <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
@@ -194,16 +201,26 @@ export default function EditRecipePage() {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="text-sm font-medium text-muted-foreground">Cuisine</label>
-            <input type="text" value={cuisine} onChange={(e) => setCuisine(e.target.value)} className="w-full mt-1 px-4 py-2.5 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+            <ComboboxField
+              value={cuisine}
+              onChange={setCuisine}
+              options={cuisineOptions}
+              placeholder="Select cuisine..."
+            />
           </div>
           <div>
-            <label className="text-sm font-medium text-muted-foreground">Tags (comma separated)</label>
-            <input type="text" value={tags} onChange={(e) => setTags(e.target.value)} className="w-full mt-1 px-4 py-2.5 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+            <label className="text-sm font-medium text-muted-foreground">Tags</label>
+            <MultiComboboxField
+              values={tags}
+              onChange={setTags}
+              options={tagOptions}
+              placeholder="Add tags..."
+            />
           </div>
         </div>
         <label className="flex items-center gap-2">
-          <input type="checkbox" checked={isFavorite} onChange={(e) => setIsFavorite(e.target.checked)} className="rounded" />
-          <span className="text-sm font-medium">Favorite</span>
+          <input type="checkbox" checked={isFavorite} onChange={(e) => setIsFavorite(e.target.checked)} className="accent-primary" />
+          <span className="text-sm font-hand font-medium">Favorite</span>
         </label>
       </div>
 
@@ -211,15 +228,15 @@ export default function EditRecipePage() {
       <div className="paper-card p-6 space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="section-header">Ingredients</h2>
-          <button onClick={() => setIngredients([...ingredients, { name: "", quantity: "", unit: "", group: "", toTaste: false }])} className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
-            <Plus className="h-3 w-3" /> Add
+          <button onClick={() => setIngredients([...ingredients, { name: "", quantity: "", unit: "", group: "", toTaste: false }])} className="font-hand text-base text-primary hover:underline inline-flex items-center gap-1">
+            <Plus className="h-3.5 w-3.5" /> Add
           </button>
         </div>
         {ingredients.map((ing, i) => (
           <div key={i} className="space-y-1">
-            <div className="flex items-center gap-2">
-              <input type="text" value={ing.quantity} onChange={(e) => { const u = [...ingredients]; u[i] = { ...u[i], quantity: e.target.value }; setIngredients(u); }} placeholder="Qty" disabled={ing.toTaste} className="w-16 px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50" />
-              <select value={ing.unit} onChange={(e) => { const u = [...ingredients]; u[i] = { ...u[i], unit: e.target.value }; setIngredients(u); }} className="w-24 px-2 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring">
+            <div className="flex items-center gap-2 py-1 border-b border-border/40">
+              <input type="text" value={ing.quantity} onChange={(e) => { const u = [...ingredients]; u[i] = { ...u[i], quantity: e.target.value }; setIngredients(u); }} placeholder="Qty" disabled={ing.toTaste} className="input-cookbook w-14 !border-b-0 text-center disabled:opacity-40" />
+              <select value={ing.unit} onChange={(e) => { const u = [...ingredients]; u[i] = { ...u[i], unit: e.target.value }; setIngredients(u); }} className="input-cookbook w-20 !border-b-0 text-center text-sm text-muted-foreground">
                 <option value="">Unit</option>
                 {UNIT_GROUPS.map((group) => (
                   <optgroup key={group.label} label={group.label}>
@@ -229,14 +246,14 @@ export default function EditRecipePage() {
                   </optgroup>
                 ))}
               </select>
-              <input type="text" value={ing.name} onChange={(e) => { const u = [...ingredients]; u[i] = { ...u[i], name: e.target.value }; setIngredients(u); }} placeholder="Ingredient" className="flex-1 px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-              <button onClick={() => setIngredients(ingredients.filter((_, j) => j !== i))} className="p-2 text-muted-foreground hover:text-destructive">
+              <input type="text" value={ing.name} onChange={(e) => { const u = [...ingredients]; u[i] = { ...u[i], name: e.target.value }; setIngredients(u); }} placeholder="Ingredient" className="input-cookbook flex-1 !border-b-0" />
+              <button onClick={() => setIngredients(ingredients.filter((_, j) => j !== i))} className="p-2 text-muted-foreground hover:text-destructive transition-colors opacity-40 hover:opacity-100">
                 <Trash2 className="h-4 w-4" />
               </button>
             </div>
             <label className="flex items-center gap-1.5 ml-1">
-              <input type="checkbox" checked={ing.toTaste} onChange={(e) => { const u = [...ingredients]; u[i] = { ...u[i], toTaste: e.target.checked, quantity: e.target.checked ? "" : u[i].quantity }; setIngredients(u); }} className="rounded" />
-              <span className="text-xs text-muted-foreground">To taste</span>
+              <input type="checkbox" checked={ing.toTaste} onChange={(e) => { const u = [...ingredients]; u[i] = { ...u[i], toTaste: e.target.checked, quantity: e.target.checked ? "" : u[i].quantity }; setIngredients(u); }} className="accent-primary" />
+              <span className="text-xs font-hand text-muted-foreground">To taste</span>
             </label>
           </div>
         ))}
@@ -246,13 +263,13 @@ export default function EditRecipePage() {
       <SortableStepList steps={steps} onChange={setSteps} />
 
       {/* Notes */}
-      <div className="paper-card p-6 space-y-3">
+      <div className="sticky-note">
         <h2 className="section-header">Notes</h2>
-        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className="w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none" />
+        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className="input-cookbook w-full lined-paper resize-none" />
       </div>
 
       <div className="flex gap-3">
-        <Link href={`/recipes/${id}`} className="flex-1 py-3 border text-center hover:bg-secondary font-hand text-lg rounded">
+        <Link href={`/recipes/${id}`} className="flex-1 py-3 border-2 border-border text-center hover:bg-secondary font-hand text-lg rounded transition-colors">
           Cancel
         </Link>
         <button onClick={handleSave} disabled={saving || !title.trim()} className="flex-1 btn-cookbook disabled:opacity-50 flex items-center justify-center gap-2">

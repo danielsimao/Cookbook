@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
@@ -15,6 +15,7 @@ import Link from "next/link";
 import { toast } from "@/components/toaster";
 import { SortableStepList } from "@/components/sortable-step-list";
 import { ImageField } from "@/components/image-field";
+import { ComboboxField, MultiComboboxField } from "@/components/combobox-field";
 
 import { UNIT_GROUPS } from "@/lib/units";
 
@@ -57,13 +58,25 @@ function NewRecipePage() {
   const [cookTime, setCookTime] = useState("");
   const [cuisine, setCuisine] = useState("");
   const [mealType, setMealType] = useState("");
-  const [tags, setTags] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
   const [ingredients, setIngredients] = useState<IngredientInput[]>([
     { name: "", quantity: "", unit: "", group: "", toTaste: false },
   ]);
   const [steps, setSteps] = useState<string[]>([""]);
   const [saving, setSaving] = useState(false);
+  const [cuisineOptions, setCuisineOptions] = useState<string[]>([]);
+  const [tagOptions, setTagOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch("/api/suggestions")
+      .then((r) => r.json())
+      .then((data) => {
+        setCuisineOptions(data.cuisines);
+        setTagOptions(data.tags);
+      })
+      .catch(() => {});
+  }, []);
 
   async function handleImportUrl() {
     if (!importUrl.trim()) return;
@@ -126,10 +139,7 @@ function NewRecipePage() {
           cookTime: cookTime ? parseInt(cookTime) : null,
           cuisine: cuisine || null,
           mealType: mealType || null,
-          tags: tags
-            .split(",")
-            .map((t) => t.trim())
-            .filter(Boolean),
+          tags,
           notes: notes || null,
           ingredients: ingredients
             .filter((i) => i.name.trim())
@@ -219,7 +229,7 @@ function NewRecipePage() {
         <div className="paper-card p-6 space-y-4">
           <div className="text-center">
             <LinkIcon className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-            <h2 className="font-semibold">Import from URL</h2>
+            <h2 className="section-header">Import from URL</h2>
             <p className="text-sm text-muted-foreground mt-1">
               Paste a recipe link from Pinterest, blogs, or any recipe site
             </p>
@@ -230,24 +240,20 @@ function NewRecipePage() {
               value={importUrl}
               onChange={(e) => setImportUrl(e.target.value)}
               placeholder="https://pinterest.com/pin/..."
-              className="flex-1 px-4 py-2.5 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="input-cookbook flex-1"
               onKeyDown={(e) => e.key === "Enter" && handleImportUrl()}
             />
             <button
               onClick={handleImportUrl}
               disabled={importing || !importUrl.trim()}
-              className="px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+              className="btn-cookbook disabled:opacity-50"
             >
-              {importing ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Loader2 className="h-4 w-4" />
-              )}
+              {importing && <Loader2 className="h-4 w-4 animate-spin" />}
               {importing ? "Importing..." : "Import"}
             </button>
           </div>
           {importing && (
-            <p className="text-sm text-muted-foreground text-center">
+            <p className="text-sm text-muted-foreground text-center font-hand">
               AI is extracting the recipe... This may take a few seconds.
             </p>
           )}
@@ -259,14 +265,14 @@ function NewRecipePage() {
         <div className="paper-card p-6 space-y-4">
           <div className="text-center">
             <ImageIcon className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-            <h2 className="font-semibold">Import from Photo</h2>
+            <h2 className="section-header">Import from Photo</h2>
             <p className="text-sm text-muted-foreground mt-1">
               Take a photo of a recipe card or page
             </p>
           </div>
-          <label className="flex flex-col items-center gap-3 p-8 rounded-lg border-2 border-dashed cursor-pointer hover:border-primary transition-colors">
+          <label className="flex flex-col items-center gap-3 p-8 border-2 border-dashed border-border rounded cursor-pointer hover:border-primary transition-colors">
             <Upload className="h-8 w-8 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">
+            <span className="font-hand text-muted-foreground">
               {importing ? "Extracting recipe..." : "Click to upload or take a photo"}
             </span>
             <input
@@ -285,7 +291,7 @@ function NewRecipePage() {
       {activeTab === "manual" && (
         <div className="space-y-6">
           {/* Basic Info */}
-          <div className="paper-card p-6 space-y-4">
+          <div className="paper-card watercolor-wash p-6 space-y-4">
             <h2 className="section-header">Basic Info</h2>
 
             <div>
@@ -297,7 +303,7 @@ function NewRecipePage() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Recipe name"
-                className="w-full mt-1 px-4 py-2.5 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                className="input-cookbook w-full mt-1"
               />
             </div>
 
@@ -310,7 +316,7 @@ function NewRecipePage() {
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Brief description..."
                 rows={2}
-                className="w-full mt-1 px-4 py-2.5 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                className="input-cookbook w-full mt-1 resize-none"
               />
             </div>
 
@@ -325,7 +331,7 @@ function NewRecipePage() {
                   type="number"
                   value={servings}
                   onChange={(e) => setServings(e.target.value)}
-                  className="w-full mt-1 px-4 py-2.5 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="input-cookbook w-full mt-1"
                 />
               </div>
               <div>
@@ -336,7 +342,7 @@ function NewRecipePage() {
                   type="number"
                   value={prepTime}
                   onChange={(e) => setPrepTime(e.target.value)}
-                  className="w-full mt-1 px-4 py-2.5 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="input-cookbook w-full mt-1"
                 />
               </div>
               <div>
@@ -347,7 +353,7 @@ function NewRecipePage() {
                   type="number"
                   value={cookTime}
                   onChange={(e) => setCookTime(e.target.value)}
-                  className="w-full mt-1 px-4 py-2.5 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="input-cookbook w-full mt-1"
                 />
               </div>
               <div>
@@ -357,7 +363,7 @@ function NewRecipePage() {
                 <select
                   value={mealType}
                   onChange={(e) => setMealType(e.target.value)}
-                  className="w-full mt-1 px-4 py-2.5 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="input-cookbook w-full mt-1"
                 >
                   <option value="">Select...</option>
                   {MEAL_TYPES.map((t) => (
@@ -374,24 +380,22 @@ function NewRecipePage() {
                 <label className="text-sm font-medium text-muted-foreground">
                   Cuisine
                 </label>
-                <input
-                  type="text"
+                <ComboboxField
                   value={cuisine}
-                  onChange={(e) => setCuisine(e.target.value)}
-                  placeholder="Italian, Mexican..."
-                  className="w-full mt-1 px-4 py-2.5 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  onChange={setCuisine}
+                  options={cuisineOptions}
+                  placeholder="Select cuisine..."
                 />
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">
                   Tags
                 </label>
-                <input
-                  type="text"
-                  value={tags}
-                  onChange={(e) => setTags(e.target.value)}
-                  placeholder="quick, healthy, pasta..."
-                  className="w-full mt-1 px-4 py-2.5 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                <MultiComboboxField
+                  values={tags}
+                  onChange={setTags}
+                  options={tagOptions}
+                  placeholder="Add tags..."
                 />
               </div>
             </div>
@@ -403,28 +407,28 @@ function NewRecipePage() {
               <h2 className="section-header">Ingredients</h2>
               <button
                 onClick={addIngredient}
-                className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                className="font-hand text-base text-primary hover:underline inline-flex items-center gap-1"
               >
-                <Plus className="h-3 w-3" />
+                <Plus className="h-3.5 w-3.5" />
                 Add
               </button>
             </div>
 
             {ingredients.map((ing, i) => (
               <div key={i} className="space-y-1">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 py-1 border-b border-border/40">
                   <input
                     type="text"
                     value={ing.quantity}
                     onChange={(e) => updateIngredient(i, "quantity", e.target.value)}
                     placeholder="Qty"
                     disabled={ing.toTaste}
-                    className="w-16 px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+                    className="input-cookbook w-14 !border-b-0 text-center disabled:opacity-40"
                   />
                   <select
                     value={ing.unit}
                     onChange={(e) => updateIngredient(i, "unit", e.target.value)}
-                    className="w-24 px-2 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="input-cookbook w-20 !border-b-0 text-center text-sm text-muted-foreground"
                   >
                     <option value="">Unit</option>
                     {UNIT_GROUPS.map((group) => (
@@ -440,11 +444,11 @@ function NewRecipePage() {
                     value={ing.name}
                     onChange={(e) => updateIngredient(i, "name", e.target.value)}
                     placeholder="Ingredient name"
-                    className="flex-1 px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="input-cookbook flex-1 !border-b-0"
                   />
                   <button
                     onClick={() => removeIngredient(i)}
-                    className="p-2 text-muted-foreground hover:text-destructive"
+                    className="p-2 text-muted-foreground hover:text-destructive transition-colors opacity-40 hover:opacity-100"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -458,9 +462,9 @@ function NewRecipePage() {
                       updated[i] = { ...updated[i], toTaste: e.target.checked, quantity: e.target.checked ? "" : updated[i].quantity };
                       setIngredients(updated);
                     }}
-                    className="rounded"
+                    className="accent-primary"
                   />
-                  <span className="text-xs text-muted-foreground">To taste</span>
+                  <span className="text-xs font-hand text-muted-foreground">To taste</span>
                 </label>
               </div>
             ))}
@@ -470,14 +474,14 @@ function NewRecipePage() {
           <SortableStepList steps={steps} onChange={setSteps} />
 
           {/* Notes */}
-          <div className="paper-card p-6 space-y-3">
+          <div className="sticky-note">
             <h2 className="section-header">Notes</h2>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Personal notes, modifications, tips..."
               rows={3}
-              className="w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+              className="input-cookbook w-full lined-paper resize-none"
             />
           </div>
 
