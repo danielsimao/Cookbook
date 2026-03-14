@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowLeft, Plus, Trash2, Loader2 } from "lucide-react";
 import { toast } from "@/components/toaster";
 import { SortableStepList } from "@/components/sortable-step-list";
+import { ImageField } from "@/components/image-field";
 
 interface IngredientInput {
   name: string;
@@ -161,15 +162,7 @@ export default function EditRecipePage() {
             className="w-full mt-1 px-4 py-2.5 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
           />
         </div>
-        <div>
-          <label className="text-sm font-medium text-muted-foreground">Image URL</label>
-          <input
-            type="url"
-            value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
-            className="w-full mt-1 px-4 py-2.5 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          />
-        </div>
+        <ImageField value={imageUrl} onChange={setImageUrl} />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div>
             <label className="text-sm font-medium text-muted-foreground">Servings</label>
