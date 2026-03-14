@@ -55,7 +55,7 @@ Return a JSON object with this exact structure (no markdown, just JSON):
 }
 
 For mealType use one of: breakfast, lunch, dinner, snack, dessert.
-For quantities, convert fractions to decimals (1/2 = 0.5, 1/4 = 0.25).
+For quantities, convert fractions to decimals (1/4 = 0.25, 1/3 = 0.333, 1/2 = 0.5, 2/3 = 0.667, 3/4 = 0.75).
 For ingredients with vague quantities like "to taste", "a pinch", "q.b.", or "as needed", set "toTaste": true and "quantity": null.
 If a field is unknown, use null.
 
@@ -186,6 +186,7 @@ export async function extractRecipeFromImage(
   "imageUrl": null
 }
 
+For quantities, convert fractions to decimals (1/4 = 0.25, 1/3 = 0.333, 1/2 = 0.5, 2/3 = 0.667, 3/4 = 0.75).
 For ingredients with vague quantities like "to taste", "a pinch", "q.b.", or "as needed", set "toTaste": true and "quantity": null.`,
           },
         ],

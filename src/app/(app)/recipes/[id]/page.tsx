@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
+import { formatQuantity } from "@/lib/format";
 import {
   ArrowLeft,
   Heart,
@@ -235,8 +236,8 @@ export default function RecipeDetailPage() {
                       <span className="italic text-muted-foreground">to taste </span>
                     ) : (
                       <>
-                        {scaledQty && (
-                          <span className="font-semibold">{scaledQty} </span>
+                        {scaledQty != null && (
+                          <span className="font-semibold">{formatQuantity(scaledQty)} </span>
                         )}
                         {ing.unit && <span>{ing.unit} </span>}
                       </>

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, X, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatQuantity } from "@/lib/format";
 
 interface Recipe {
   id: string;
@@ -129,7 +130,7 @@ export default function CookingModePage() {
                       <span className="italic text-muted-foreground">to taste </span>
                     ) : (
                       <>
-                        {ing.quantity && <span className="font-semibold">{ing.quantity} </span>}
+                        {ing.quantity != null && <span className="font-semibold">{formatQuantity(ing.quantity)} </span>}
                         {ing.unit && <span>{ing.unit} </span>}
                       </>
                     )}
