@@ -412,19 +412,19 @@ function NewRecipePage() {
 
             {ingredients.map((ing, i) => (
               <div key={i} className="space-y-1">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <input
                     type="text"
                     value={ing.quantity}
                     onChange={(e) => updateIngredient(i, "quantity", e.target.value)}
                     placeholder="Qty"
                     disabled={ing.toTaste}
-                    className="w-16 px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+                    className="w-14 px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
                   />
                   <select
                     value={ing.unit}
                     onChange={(e) => updateIngredient(i, "unit", e.target.value)}
-                    className="w-24 px-2 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="w-20 px-2 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   >
                     <option value="">Unit</option>
                     {UNIT_GROUPS.map((group) => (
@@ -440,7 +440,7 @@ function NewRecipePage() {
                     value={ing.name}
                     onChange={(e) => updateIngredient(i, "name", e.target.value)}
                     placeholder="Ingredient name"
-                    className="flex-1 px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="flex-1 min-w-[120px] px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <button
                     onClick={() => removeIngredient(i)}
