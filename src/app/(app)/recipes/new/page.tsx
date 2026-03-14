@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "@/components/toaster";
+import { SortableStepList } from "@/components/sortable-step-list";
 
 interface IngredientInput {
   name: string;
@@ -160,14 +161,6 @@ function NewRecipePage() {
     const updated = [...ingredients];
     updated[index] = { ...updated[index], [field]: value };
     setIngredients(updated);
-  }
-
-  function addStep() {
-    setSteps([...steps, ""]);
-  }
-
-  function removeStep(index: number) {
-    setSteps(steps.filter((_, i) => i !== index));
   }
 
   return (
@@ -457,43 +450,7 @@ function NewRecipePage() {
           </div>
 
           {/* Steps */}
-          <div className="rounded-xl border bg-card p-6 space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold">Instructions</h2>
-              <button
-                onClick={addStep}
-                className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-              >
-                <Plus className="h-3 w-3" />
-                Add Step
-              </button>
-            </div>
-
-            {steps.map((step, i) => (
-              <div key={i} className="flex items-start gap-2">
-                <span className="mt-2.5 text-sm font-medium text-muted-foreground w-6 text-right shrink-0">
-                  {i + 1}.
-                </span>
-                <textarea
-                  value={step}
-                  onChange={(e) => {
-                    const updated = [...steps];
-                    updated[i] = e.target.value;
-                    setSteps(updated);
-                  }}
-                  placeholder="Describe this step..."
-                  rows={2}
-                  className="flex-1 px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-                />
-                <button
-                  onClick={() => removeStep(i)}
-                  className="mt-2 p-2 text-muted-foreground hover:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
-          </div>
+          <SortableStepList steps={steps} onChange={setSteps} />
 
           {/* Notes */}
           <div className="rounded-xl border bg-card p-6 space-y-3">
