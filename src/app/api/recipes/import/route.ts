@@ -5,13 +5,26 @@ import { extractRecipeFromHtml } from "@/lib/ai";
 
 export async function POST(request: NextRequest) {
   try {
-    const { url } = await request.json();
+    const { url, force } = await request.json();
 
     if (!url) {
       return NextResponse.json(
         { error: "URL is required" },
         { status: 400 }
       );
+    }
+
+    if (!force) {
+      const existing = await prisma.recipe.findFirst({
+        where: { sourceUrl: url },
+        select: { id: true, title: true },
+      });
+      if (existing) {
+        return NextResponse.json(
+          { duplicate: true, existingId: existing.id, existingTitle: existing.title },
+          { status: 409 }
+        );
+      }
     }
 
     const { html, imageUrl: scrapedImageUrl } = await scrapeUrl(url);

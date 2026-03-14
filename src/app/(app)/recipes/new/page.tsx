@@ -48,6 +48,7 @@ function NewRecipePage() {
   // Import states
   const [importUrl, setImportUrl] = useState("");
   const [importing, setImporting] = useState(false);
+  const [duplicate, setDuplicate] = useState<{ id: string; title: string } | null>(null);
 
   // Form states
   const [title, setTitle] = useState("");
@@ -78,15 +79,20 @@ function NewRecipePage() {
       .catch(() => {});
   }, []);
 
-  async function handleImportUrl() {
+  async function handleImportUrl(force = false) {
     if (!importUrl.trim()) return;
     setImporting(true);
     try {
       const res = await fetch("/api/recipes/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: importUrl }),
+        body: JSON.stringify({ url: importUrl, force }),
       });
+      if (res.status === 409) {
+        const { existingId, existingTitle } = await res.json();
+        setDuplicate({ id: existingId, title: existingTitle });
+        return;
+      }
       if (!res.ok) throw new Error("Import failed");
       const recipe = await res.json();
       toast("Recipe imported successfully!", "success");
@@ -238,13 +244,13 @@ function NewRecipePage() {
             <input
               type="url"
               value={importUrl}
-              onChange={(e) => setImportUrl(e.target.value)}
+              onChange={(e) => { setImportUrl(e.target.value); setDuplicate(null); }}
               placeholder="https://pinterest.com/pin/..."
               className="input-cookbook flex-1"
               onKeyDown={(e) => e.key === "Enter" && handleImportUrl()}
             />
             <button
-              onClick={handleImportUrl}
+              onClick={() => handleImportUrl()}
               disabled={importing || !importUrl.trim()}
               className="btn-cookbook disabled:opacity-50"
             >
@@ -252,6 +258,24 @@ function NewRecipePage() {
               {importing ? "Importing..." : "Import"}
             </button>
           </div>
+          {duplicate && (
+            <div className="sticky-note space-y-2">
+              <p className="font-hand text-base">
+                You already imported this URL as <Link href={`/recipes/${duplicate.id}`} className="text-primary font-bold hover:underline">&ldquo;{duplicate.title}&rdquo;</Link>
+              </p>
+              <div className="flex gap-2">
+                <Link href={`/recipes/${duplicate.id}`} className="btn-cookbook !bg-secondary !text-secondary-foreground !text-sm">
+                  View Existing
+                </Link>
+                <button
+                  onClick={() => { setDuplicate(null); handleImportUrl(true); }}
+                  className="btn-cookbook !text-sm !bg-muted-foreground"
+                >
+                  Import Again
+                </button>
+              </div>
+            </div>
+          )}
           {importing && (
             <p className="text-sm text-muted-foreground text-center font-hand">
               AI is extracting the recipe... This may take a few seconds.
