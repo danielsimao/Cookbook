@@ -5,6 +5,104 @@ import { ChevronDown, Plus, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
+// ─── Shared dropdown list ───
+
+interface DropdownListProps {
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  filter: string;
+  onFilterChange: (value: string) => void;
+  options: string[];
+  selectedValue?: string;
+  showAdd: boolean;
+  onSelect: (value: string) => void;
+  emptyMessage: string;
+  searchPlaceholder: string;
+}
+
+function DropdownList({
+  inputRef,
+  filter,
+  onFilterChange,
+  options,
+  selectedValue,
+  showAdd,
+  onSelect,
+  emptyMessage,
+  searchPlaceholder,
+}: DropdownListProps) {
+  return (
+    <>
+      <div className="p-2 border-b border-border">
+        <input
+          ref={inputRef}
+          type="text"
+          value={filter}
+          onChange={(e) => onFilterChange(e.target.value)}
+          placeholder={searchPlaceholder}
+          className="input-cookbook w-full !border-b-0 text-sm"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              if (showAdd) {
+                onSelect(filter.trim());
+              } else if (options.length > 0) {
+                onSelect(options[0]);
+              }
+            }
+          }}
+        />
+      </div>
+      <div className="max-h-48 overflow-y-auto p-1">
+        {options.map((option) => (
+          <button
+            key={option}
+            type="button"
+            onClick={() => onSelect(option)}
+            className={cn(
+              "w-full text-left px-3 py-1.5 font-hand text-base rounded hover:bg-secondary transition-colors",
+              selectedValue === option && "text-primary font-bold"
+            )}
+          >
+            {option}
+          </button>
+        ))}
+        {showAdd && (
+          <button
+            type="button"
+            onClick={() => onSelect(filter.trim())}
+            className="w-full text-left px-3 py-1.5 font-hand text-base text-primary rounded hover:bg-secondary transition-colors flex items-center gap-1.5"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add &ldquo;{filter.trim()}&rdquo;
+          </button>
+        )}
+        {options.length === 0 && !showAdd && (
+          <p className="px-3 py-2 text-sm text-muted-foreground font-hand">
+            {emptyMessage}
+          </p>
+        )}
+      </div>
+    </>
+  );
+}
+
+function useDropdownFilter(open: boolean, inputRef: React.RefObject<HTMLInputElement | null>) {
+  const [filter, setFilter] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setFilter("");
+      setTimeout(() => inputRef.current?.focus(), 0);
+    }
+  }, [open, inputRef]);
+
+  return [filter, setFilter] as const;
+}
+
+function isNewValue(value: string, existing: string[]): boolean {
+  const lower = value.trim().toLowerCase();
+  return Boolean(value.trim()) && !existing.some((o) => o.toLowerCase() === lower);
+}
+
 // ─── Single-select combobox (Cuisine) ───
 
 interface ComboboxFieldProps {
@@ -21,22 +119,13 @@ export function ComboboxField({
   placeholder = "Select...",
 }: ComboboxFieldProps) {
   const [open, setOpen] = useState(false);
-  const [filter, setFilter] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const [filter, setFilter] = useDropdownFilter(open, inputRef);
 
   const filtered = options.filter((o) =>
     o.toLowerCase().includes(filter.toLowerCase())
   );
-  const showAdd = filter.trim() && !options.some(
-    (o) => o.toLowerCase() === filter.trim().toLowerCase()
-  );
-
-  useEffect(() => {
-    if (open) {
-      setFilter("");
-      setTimeout(() => inputRef.current?.focus(), 0);
-    }
-  }, [open]);
+  const showAdd = isNewValue(filter, options);
 
   function select(val: string) {
     onChange(val);
@@ -62,51 +151,17 @@ export function ComboboxField({
         align="start"
         sideOffset={4}
       >
-        <div className="p-2 border-b border-border">
-          <input
-            ref={inputRef}
-            type="text"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            placeholder="Type to search..."
-            className="input-cookbook w-full !border-b-0 text-sm"
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && showAdd) {
-                select(filter.trim());
-              }
-            }}
-          />
-        </div>
-        <div className="max-h-48 overflow-y-auto p-1">
-          {filtered.map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => select(option)}
-              className={cn(
-                "w-full text-left px-3 py-1.5 font-hand text-base rounded hover:bg-secondary transition-colors",
-                value === option && "text-primary font-bold"
-              )}
-            >
-              {option}
-            </button>
-          ))}
-          {showAdd && (
-            <button
-              type="button"
-              onClick={() => select(filter.trim())}
-              className="w-full text-left px-3 py-1.5 font-hand text-base text-primary rounded hover:bg-secondary transition-colors flex items-center gap-1.5"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Add &ldquo;{filter.trim()}&rdquo;
-            </button>
-          )}
-          {filtered.length === 0 && !showAdd && (
-            <p className="px-3 py-2 text-sm text-muted-foreground font-hand">
-              No matches
-            </p>
-          )}
-        </div>
+        <DropdownList
+          inputRef={inputRef}
+          filter={filter}
+          onFilterChange={setFilter}
+          options={filtered}
+          selectedValue={value}
+          showAdd={showAdd}
+          onSelect={select}
+          emptyMessage="No matches"
+          searchPlaceholder="Type to search..."
+        />
       </PopoverContent>
     </Popover>
   );
@@ -128,26 +183,15 @@ export function MultiComboboxField({
   placeholder = "Add tags...",
 }: MultiComboboxFieldProps) {
   const [open, setOpen] = useState(false);
-  const [filter, setFilter] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const [filter, setFilter] = useDropdownFilter(open, inputRef);
 
   const available = options.filter(
     (o) =>
       !values.includes(o) &&
       o.toLowerCase().includes(filter.toLowerCase())
   );
-  const showAdd = filter.trim() && !options.some(
-    (o) => o.toLowerCase() === filter.trim().toLowerCase()
-  ) && !values.some(
-    (v) => v.toLowerCase() === filter.trim().toLowerCase()
-  );
-
-  useEffect(() => {
-    if (open) {
-      setFilter("");
-      setTimeout(() => inputRef.current?.focus(), 0);
-    }
-  }, [open]);
+  const showAdd = isNewValue(filter, options) && isNewValue(filter, values);
 
   function addTag(tag: string) {
     onChange([...values, tag]);
@@ -198,52 +242,16 @@ export function MultiComboboxField({
           align="start"
           sideOffset={4}
         >
-          <div className="p-2 border-b border-border">
-            <input
-              ref={inputRef}
-              type="text"
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              placeholder="Type to search or add..."
-              className="input-cookbook w-full !border-b-0 text-sm"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && filter.trim()) {
-                  if (showAdd) {
-                    addTag(filter.trim());
-                  } else if (available.length > 0) {
-                    addTag(available[0]);
-                  }
-                }
-              }}
-            />
-          </div>
-          <div className="max-h-48 overflow-y-auto p-1">
-            {available.map((option) => (
-              <button
-                key={option}
-                type="button"
-                onClick={() => addTag(option)}
-                className="w-full text-left px-3 py-1.5 font-hand text-base rounded hover:bg-secondary transition-colors"
-              >
-                {option}
-              </button>
-            ))}
-            {showAdd && (
-              <button
-                type="button"
-                onClick={() => addTag(filter.trim())}
-                className="w-full text-left px-3 py-1.5 font-hand text-base text-primary rounded hover:bg-secondary transition-colors flex items-center gap-1.5"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Add &ldquo;{filter.trim()}&rdquo;
-              </button>
-            )}
-            {available.length === 0 && !showAdd && (
-              <p className="px-3 py-2 text-sm text-muted-foreground font-hand">
-                {values.length === options.length ? "All tags selected" : "No matches"}
-              </p>
-            )}
-          </div>
+          <DropdownList
+            inputRef={inputRef}
+            filter={filter}
+            onFilterChange={setFilter}
+            options={available}
+            showAdd={showAdd}
+            onSelect={addTag}
+            emptyMessage={values.length === options.length ? "All tags selected" : "No matches"}
+            searchPlaceholder="Type to search or add..."
+          />
         </PopoverContent>
       </Popover>
     </div>

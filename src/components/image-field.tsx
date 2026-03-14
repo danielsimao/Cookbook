@@ -60,13 +60,13 @@ export function ImageField({ value, onChange }: ImageFieldProps) {
             setPreviewError(false);
           }}
           placeholder="https://..."
-          className="flex-1 px-4 py-2.5 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          className="input-cookbook flex-1"
         />
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
-          className="px-4 py-2.5 rounded-lg border bg-background text-sm font-medium hover:bg-secondary transition-colors disabled:opacity-50 flex items-center gap-2"
+          className="btn-cookbook !py-2 !px-4 !text-sm disabled:opacity-50"
         >
           {uploading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -84,12 +84,14 @@ export function ImageField({ value, onChange }: ImageFieldProps) {
         />
       </div>
       {value && !previewError && (
-        <img
-          src={value}
-          alt="Preview"
-          onError={() => setPreviewError(true)}
-          className="mt-3 rounded-lg max-h-48 object-cover"
-        />
+        <div className="photo-taped mt-3 inline-block">
+          <img
+            src={value}
+            alt="Preview"
+            onError={() => setPreviewError(true)}
+            className="max-h-48 object-cover block"
+          />
+        </div>
       )}
     </div>
   );

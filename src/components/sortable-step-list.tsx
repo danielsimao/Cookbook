@@ -57,26 +57,26 @@ function SortableStep({
     <div ref={setNodeRef} style={style} className="flex items-start gap-2">
       <button
         type="button"
-        className="mt-2.5 cursor-grab active:cursor-grabbing touch-none text-muted-foreground hover:text-foreground"
+        className="mt-2.5 cursor-grab active:cursor-grabbing touch-none text-muted-foreground hover:text-foreground opacity-50"
         {...attributes}
         {...listeners}
       >
         <GripVertical className="h-4 w-4" />
       </button>
-      <span className="mt-2.5 text-sm font-medium text-muted-foreground w-6 text-right shrink-0">
-        {index + 1}.
-      </span>
+      <div className="step-circle mt-1">
+        {index + 1}
+      </div>
       <textarea
         value={value}
         onChange={(e) => onChangeText(e.target.value)}
         placeholder="Describe this step..."
         rows={2}
-        className="flex-1 px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+        className="input-cookbook flex-1 resize-none"
       />
       <button
         type="button"
         onClick={onRemove}
-        className="mt-2 p-2 text-muted-foreground hover:text-destructive"
+        className="mt-2 p-2 text-muted-foreground hover:text-destructive transition-colors opacity-40 hover:opacity-100"
       >
         <Trash2 className="h-4 w-4" />
       </button>
@@ -119,15 +119,15 @@ export function SortableStepList({ steps, onChange }: SortableStepListProps) {
   }
 
   return (
-    <div className="rounded-xl border bg-card p-6 space-y-3">
+    <div className="paper-card p-6 space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="font-semibold">Instructions</h2>
+        <h2 className="section-header">Steps</h2>
         <button
           type="button"
           onClick={addStep}
-          className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+          className="font-hand text-base text-primary hover:underline inline-flex items-center gap-1"
         >
-          <Plus className="h-3 w-3" />
+          <Plus className="h-3.5 w-3.5" />
           Add Step
         </button>
       </div>

@@ -10,16 +10,7 @@ import { ImageField } from "@/components/image-field";
 import { ComboboxField, MultiComboboxField } from "@/components/combobox-field";
 
 import { UNIT_GROUPS } from "@/lib/units";
-
-interface IngredientInput {
-  name: string;
-  quantity: string;
-  unit: string;
-  group: string;
-  toTaste: boolean;
-}
-
-const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack", "dessert"];
+import { IngredientInput, MEAL_TYPES, emptyIngredient } from "@/lib/recipe-form";
 
 export default function EditRecipePage() {
   const { id } = useParams();
@@ -75,19 +66,25 @@ export default function EditRecipePage() {
             .map((s: { text: string }) => s.text)
         );
         setLoading(false);
-        fetch("/api/suggestions")
-          .then((r) => r.json())
-          .then((data) => {
-            setCuisineOptions(data.cuisines);
-            setTagOptions(data.tags);
-          })
-          .catch(() => {});
       })
       .catch(() => {
         toast("Failed to load recipe", "error");
         setLoading(false);
       });
   }, [id]);
+
+  useEffect(() => {
+    fetch("/api/suggestions")
+      .then((r) => {
+        if (!r.ok) throw new Error(`Suggestions API returned ${r.status}`);
+        return r.json();
+      })
+      .then((data) => {
+        setCuisineOptions(data.cuisines ?? []);
+        setTagOptions(data.tags ?? []);
+      })
+      .catch((err) => console.error("Failed to load suggestions:", err));
+  }, []);
 
   async function handleSave() {
     if (!title.trim()) {
@@ -228,7 +225,7 @@ export default function EditRecipePage() {
       <div className="paper-card p-6 space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="section-header">Ingredients</h2>
-          <button onClick={() => setIngredients([...ingredients, { name: "", quantity: "", unit: "", group: "", toTaste: false }])} className="font-hand text-base text-primary hover:underline inline-flex items-center gap-1">
+          <button onClick={() => setIngredients([...ingredients, emptyIngredient()])} className="font-hand text-base text-primary hover:underline inline-flex items-center gap-1">
             <Plus className="h-3.5 w-3.5" /> Add
           </button>
         </div>

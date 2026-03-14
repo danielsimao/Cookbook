@@ -10,16 +10,14 @@ export async function GET() {
         select: { cuisine: true },
         distinct: ["cuisine"],
       }),
-      prisma.recipe.findMany({
-        select: { tags: true },
-      }),
+      prisma.$queryRaw<{ tag: string }[]>`
+        SELECT DISTINCT unnest(tags) as tag FROM "Recipe"
+      `,
     ]);
 
-    const dbCuisines = cuisineRows
-      .map((r) => r.cuisine!)
-      .filter(Boolean);
+    const dbCuisines = cuisineRows.map((r) => r.cuisine!);
 
-    const dbTags = tagRows.flatMap((r) => r.tags);
+    const dbTags = tagRows.map((r) => r.tag);
 
     const cuisines = [...new Set([...DEFAULT_CUISINES, ...dbCuisines])].sort(
       (a, b) => a.localeCompare(b)
@@ -29,7 +27,8 @@ export async function GET() {
     );
 
     return NextResponse.json({ cuisines, tags });
-  } catch {
+  } catch (error) {
+    console.error("Failed to fetch suggestions:", error);
     return NextResponse.json(
       { error: "Failed to fetch suggestions" },
       { status: 500 }

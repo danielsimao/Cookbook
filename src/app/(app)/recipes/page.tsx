@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/toaster";
+import { MEAL_TYPES } from "@/lib/recipe-form";
 
 interface Recipe {
   id: string;
@@ -30,8 +31,6 @@ interface Recipe {
   isFavorite: boolean;
   servings: number;
 }
-
-const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack", "dessert"];
 
 const WASHI_COLORS = ["washi-tape-pink", "washi-tape-blue", "washi-tape-green", "washi-tape-yellow", "washi-tape-pink"];
 const WASHI_ROTATIONS = ["-1deg", "0.5deg", "-0.5deg", "1deg", "-0.8deg"];

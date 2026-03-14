@@ -18,16 +18,7 @@ import { ImageField } from "@/components/image-field";
 import { ComboboxField, MultiComboboxField } from "@/components/combobox-field";
 
 import { UNIT_GROUPS } from "@/lib/units";
-
-interface IngredientInput {
-  name: string;
-  quantity: string;
-  unit: string;
-  group: string;
-  toTaste: boolean;
-}
-
-const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack", "dessert"];
+import { IngredientInput, MEAL_TYPES, emptyIngredient } from "@/lib/recipe-form";
 
 export default function NewRecipePageWrapper() {
   return (
@@ -62,7 +53,7 @@ function NewRecipePage() {
   const [tags, setTags] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
   const [ingredients, setIngredients] = useState<IngredientInput[]>([
-    { name: "", quantity: "", unit: "", group: "", toTaste: false },
+    emptyIngredient(),
   ]);
   const [steps, setSteps] = useState<string[]>([""]);
   const [saving, setSaving] = useState(false);
@@ -71,12 +62,15 @@ function NewRecipePage() {
 
   useEffect(() => {
     fetch("/api/suggestions")
-      .then((r) => r.json())
-      .then((data) => {
-        setCuisineOptions(data.cuisines);
-        setTagOptions(data.tags);
+      .then((r) => {
+        if (!r.ok) throw new Error(`Suggestions API returned ${r.status}`);
+        return r.json();
       })
-      .catch(() => {});
+      .then((data) => {
+        setCuisineOptions(data.cuisines ?? []);
+        setTagOptions(data.tags ?? []);
+      })
+      .catch((err) => console.error("Failed to load suggestions:", err));
   }, []);
 
   async function handleImportUrl(force = false) {
@@ -89,8 +83,12 @@ function NewRecipePage() {
         body: JSON.stringify({ url: importUrl, force }),
       });
       if (res.status === 409) {
-        const { existingId, existingTitle } = await res.json();
-        setDuplicate({ id: existingId, title: existingTitle });
+        const data = await res.json();
+        if (data.existingId && data.existingTitle) {
+          setDuplicate({ id: data.existingId, title: data.existingTitle });
+        } else {
+          toast("This URL may already be imported.", "error");
+        }
         return;
       }
       if (!res.ok) throw new Error("Import failed");
@@ -171,7 +169,7 @@ function NewRecipePage() {
   }
 
   function addIngredient() {
-    setIngredients([...ingredients, { name: "", quantity: "", unit: "", group: "", toTaste: false }]);
+    setIngredients([...ingredients, emptyIngredient()]);
   }
 
   function removeIngredient(index: number) {
