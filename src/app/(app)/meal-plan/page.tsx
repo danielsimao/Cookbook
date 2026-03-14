@@ -5,7 +5,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Plus,
-  Trash2,
   Shuffle,
   RotateCcw,
   X,
@@ -47,9 +46,15 @@ interface Recipe {
 }
 
 const MEAL_TYPES = ["breakfast", "lunch", "dinner"];
+const MEAL_ICONS: Record<string, string> = {
+  breakfast: "🌅",
+  lunch: "☀️",
+  dinner: "🌙",
+};
 
 export default function MealPlanPage() {
   const [currentWeek, setCurrentWeek] = useState(new Date());
+  const [selectedDay, setSelectedDay] = useState(new Date());
   const [items, setItems] = useState<MealPlanItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState<{ date: Date; mealType: string } | null>(null);
@@ -164,36 +169,40 @@ export default function MealPlanPage() {
     );
   }
 
+  function dayHasMeals(day: Date) {
+    return items.some((item) => isSameDay(new Date(item.date), day));
+  }
+
   const filteredRecipes = recipes.filter((r) =>
     r.title.toLowerCase().includes(recipeSearch.toLowerCase())
   );
 
   return (
-    <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6">
+    <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-bold">Meal Plan</h1>
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="font-display text-xl md:text-2xl font-bold hand-underline shrink-0">Meal Plan</h1>
+        <div className="flex items-center gap-1.5 shrink-0">
           <button
             onClick={randomFill}
             disabled={randomizing}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm hover:bg-secondary disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 p-2 md:px-3 md:py-2 border text-sm hover:bg-secondary disabled:opacity-50 rounded"
             title="Fill week with random recipes"
           >
             <Shuffle className={cn("h-4 w-4", randomizing && "animate-spin")} />
-            <span className="hidden sm:inline">Fill Week</span>
+            <span className="hidden sm:inline font-hand text-base">Fill Week</span>
           </button>
           <button
             onClick={() => setShowClearConfirm(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm hover:bg-secondary"
+            className="inline-flex items-center gap-1.5 p-2 md:px-3 md:py-2 border text-sm hover:bg-secondary rounded"
             title="Clear week"
           >
             <RotateCcw className="h-4 w-4" />
-            <span className="hidden sm:inline">Clear</span>
+            <span className="hidden sm:inline font-hand text-base">Clear</span>
           </button>
           <Link
             href={`/shopping-list?startDate=${weekStart.toISOString()}&endDate=${weekEnd.toISOString()}`}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90"
+            className="btn-cookbook inline-flex items-center gap-1.5 !px-3 !py-2 !text-sm"
           >
             <ShoppingCart className="h-4 w-4" />
             <span className="hidden sm:inline">Shopping List</span>
@@ -205,141 +214,190 @@ export default function MealPlanPage() {
       <div className="flex items-center justify-between">
         <button
           onClick={() => setCurrentWeek(subWeeks(currentWeek, 1))}
-          className="p-2 rounded-lg hover:bg-secondary"
+          className="p-2 hover:bg-secondary rounded"
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
         <div className="text-center">
-          <p className="font-semibold">
-            {format(weekStart, "MMM d")} - {format(weekEnd, "MMM d, yyyy")}
+          <p className="font-display font-bold text-sm">
+            {format(weekStart, "MMM d")} – {format(weekEnd, "MMM d, yyyy")}
           </p>
           <button
-            onClick={() => setCurrentWeek(new Date())}
-            className="text-xs text-primary hover:underline"
+            onClick={() => {
+              setCurrentWeek(new Date());
+              setSelectedDay(new Date());
+            }}
+            className="font-hand text-sm text-primary hover:underline"
           >
             Today
           </button>
         </div>
         <button
           onClick={() => setCurrentWeek(addWeeks(currentWeek, 1))}
-          className="p-2 rounded-lg hover:bg-secondary"
+          className="p-2 hover:bg-secondary rounded"
         >
           <ChevronRight className="h-5 w-5" />
         </button>
       </div>
 
-      {/* Calendar Grid */}
       {loading ? (
         <div className="space-y-3">
-          {[1, 2, 3, 4, 5, 6, 7].map((i) => (
-            <div key={i} className="h-24 bg-muted animate-pulse rounded-xl" />
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-32 bg-muted animate-pulse rounded" />
           ))}
         </div>
       ) : (
-        <div className="space-y-3">
-          {days.map((day) => (
-            <div
-              key={day.toISOString()}
-              className={cn(
-                "rounded-xl border bg-card overflow-hidden",
-                isToday(day) && "ring-2 ring-primary"
+        <div className="md:flex md:gap-6">
+          {/* Day selector — grid on mobile, vertical sidebar on desktop */}
+          <div className="grid grid-cols-7 gap-1 pb-3 md:pb-0 md:flex md:flex-col md:w-48 md:shrink-0">
+            {days.map((day) => {
+              const isSelected = isSameDay(day, selectedDay);
+              const hasMeals = dayHasMeals(day);
+              return (
+                <button
+                  key={day.toISOString()}
+                  onClick={() => setSelectedDay(day)}
+                  className={cn(
+                    "flex flex-col items-center py-2 md:flex-row md:gap-3 md:px-4 md:py-3 rounded transition-all font-hand",
+                    isSelected
+                      ? "bg-primary text-primary-foreground"
+                      : isToday(day)
+                        ? "border-2 border-primary bg-card"
+                        : "bg-card hover:bg-secondary"
+                  )}
+                >
+                  <span className="text-[0.6rem] md:text-xs uppercase tracking-wide opacity-80">
+                    {format(day, "EEE")}
+                  </span>
+                  <span className="text-base md:text-base font-bold leading-none md:flex-1">
+                    {format(day, "d")}
+                  </span>
+                  {hasMeals && !isSelected && (
+                    <span className="hidden md:inline text-xs opacity-60">
+                      {items.filter((i) => isSameDay(new Date(i.date), day)).length} meals
+                    </span>
+                  )}
+                  {hasMeals && !isSelected && (
+                    <span className="md:hidden w-1.5 h-1.5 rounded-full bg-accent mt-0.5" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Day content */}
+          <div className="flex-1 space-y-4 md:space-y-5">
+            {/* Day title (mobile only — desktop shows in sidebar) */}
+            <div className="flex items-baseline gap-2">
+              <h2 className="font-display font-bold text-lg">
+                {format(selectedDay, "EEEE")}
+              </h2>
+              <span className="font-hand text-muted-foreground text-base">
+                {format(selectedDay, "MMM d")}
+              </span>
+              {isToday(selectedDay) && (
+                <span className="stamp-badge text-[0.65rem]">Today</span>
               )}
-            >
-              <div className="px-4 py-2 border-b bg-secondary/50 flex items-center justify-between">
-                <span className="font-medium text-sm">
-                  {format(day, "EEEE")}
-                  <span className="text-muted-foreground ml-2">
-                    {format(day, "MMM d")}
-                  </span>
-                </span>
-                {isToday(day) && (
-                  <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
-                    Today
-                  </span>
-                )}
-              </div>
-              <div className="p-3 grid grid-cols-1 md:grid-cols-3 gap-2">
-                {MEAL_TYPES.map((mealType) => {
-                  const dayItems = getItemsForDayMeal(day, mealType);
-                  return (
-                    <div key={mealType} className="space-y-1.5">
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        {mealType}
-                      </span>
-                      {dayItems.map((item) => (
-                        <div
-                          key={item.id}
-                          className="flex items-center gap-2 p-2 rounded-lg bg-secondary/50 group"
-                        >
-                          {item.recipe.imageUrl ? (
-                            <img
-                              src={item.recipe.imageUrl}
-                              alt=""
-                              className="h-8 w-8 rounded object-cover shrink-0"
-                            />
-                          ) : (
-                            <div className="h-8 w-8 rounded bg-muted flex items-center justify-center text-xs shrink-0">
-                              🍽️
-                            </div>
-                          )}
-                          <Link
-                            href={`/recipes/${item.recipe.id}`}
-                            className="text-xs font-medium truncate flex-1 hover:text-primary"
-                          >
-                            {item.recipe.title}
-                          </Link>
-                          <button
-                            onClick={() => removeItem(item.id)}
-                            className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-destructive transition-opacity"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                      ))}
-                      <button
-                        onClick={() => openAddModal(day, mealType)}
-                        className="flex items-center gap-1 px-2 py-1.5 rounded-lg border border-dashed text-xs text-muted-foreground hover:text-foreground hover:border-foreground transition-colors w-full"
-                      >
-                        <Plus className="h-3 w-3" />
-                        Add
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
             </div>
-          ))}
+
+            {/* Meal sections */}
+            {MEAL_TYPES.map((mealType) => {
+              const dayItems = getItemsForDayMeal(selectedDay, mealType);
+              return (
+                <div key={mealType}>
+                  <div className="font-hand text-base text-muted-foreground uppercase tracking-wide mb-2">
+                    {MEAL_ICONS[mealType]} {mealType}
+                  </div>
+
+                  {dayItems.length > 0 ? (
+                    <div className="space-y-2">
+                      {dayItems.map((item) => {
+                        const totalTime = (item.recipe.prepTime || 0) + (item.recipe.cookTime || 0);
+                        return (
+                          <div key={item.id} className="paper-card overflow-hidden group">
+                            {item.recipe.imageUrl && (
+                              <Link href={`/recipes/${item.recipe.id}`}>
+                                <img
+                                  src={item.recipe.imageUrl}
+                                  alt={item.recipe.title}
+                                  className="w-full aspect-[16/7] object-cover"
+                                />
+                              </Link>
+                            )}
+                            <div className="p-3 flex items-center gap-3">
+                              {!item.recipe.imageUrl && (
+                                <div className="h-10 w-10 rounded bg-muted flex items-center justify-center text-lg shrink-0">
+                                  🍽️
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <Link
+                                  href={`/recipes/${item.recipe.id}`}
+                                  className="font-display font-bold text-sm hover:text-primary block truncate"
+                                >
+                                  {item.recipe.title}
+                                </Link>
+                                {totalTime > 0 && (
+                                  <span className="font-hand text-sm text-muted-foreground">
+                                    {totalTime} min
+                                  </span>
+                                )}
+                              </div>
+                              <button
+                                onClick={() => removeItem(item.id)}
+                                className="p-1.5 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 md:opacity-100 transition-opacity"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+
+                  <button
+                    onClick={() => openAddModal(selectedDay, mealType)}
+                    className="flex items-center gap-2 w-full px-4 py-3 mt-1 border-2 border-dashed border-border rounded text-muted-foreground hover:text-foreground hover:border-foreground transition-colors font-hand text-base"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add {mealType}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
       {/* Add Recipe Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/50">
-          <div className="bg-card rounded-t-xl md:rounded-xl w-full max-w-md max-h-[70vh] flex flex-col">
+          <div className="paper-card rounded-t-xl md:rounded w-full max-w-md max-h-[70vh] flex flex-col">
             <div className="p-4 border-b flex items-center justify-between">
               <div>
-                <h3 className="font-semibold">Add Recipe</h3>
-                <p className="text-xs text-muted-foreground">
-                  {format(showAddModal.date, "EEEE, MMM d")} - {showAddModal.mealType}
+                <h3 className="font-display font-bold">Add Recipe</h3>
+                <p className="font-hand text-sm text-muted-foreground">
+                  {format(showAddModal.date, "EEEE, MMM d")} · {showAddModal.mealType}
                 </p>
               </div>
               <button
                 onClick={() => setShowAddModal(null)}
-                className="p-2 rounded-lg hover:bg-secondary"
+                className="p-2 hover:bg-secondary rounded"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
             <div className="p-3 border-b">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-1 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
                   type="text"
                   value={recipeSearch}
                   onChange={(e) => setRecipeSearch(e.target.value)}
                   placeholder="Search recipes..."
                   autoFocus
-                  className="w-full pl-10 pr-4 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="input-cookbook w-full pl-7 py-2 text-sm"
                 />
               </div>
             </div>
@@ -348,7 +406,7 @@ export default function MealPlanPage() {
                 <button
                   key={recipe.id}
                   onClick={() => addToMealPlan(recipe.id)}
-                  className="flex items-center gap-3 w-full p-2.5 rounded-lg hover:bg-secondary transition-colors text-left"
+                  className="flex items-center gap-3 w-full p-2.5 hover:bg-secondary transition-colors text-left rounded"
                 >
                   {recipe.imageUrl ? (
                     <img
@@ -362,9 +420,9 @@ export default function MealPlanPage() {
                     </div>
                   )}
                   <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{recipe.title}</p>
+                    <p className="text-sm font-display font-bold truncate">{recipe.title}</p>
                     {recipe.mealType && (
-                      <p className="text-xs text-muted-foreground capitalize">
+                      <p className="font-hand text-sm text-muted-foreground capitalize">
                         {recipe.mealType}
                       </p>
                     )}
@@ -372,7 +430,7 @@ export default function MealPlanPage() {
                 </button>
               ))}
               {filteredRecipes.length === 0 && (
-                <p className="text-center py-8 text-sm text-muted-foreground">
+                <p className="text-center py-8 text-sm text-muted-foreground font-hand">
                   No recipes found
                 </p>
               )}
@@ -384,22 +442,22 @@ export default function MealPlanPage() {
       {/* Clear Confirmation */}
       {showClearConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-card rounded-xl p-6 max-w-sm w-full space-y-4">
-            <h3 className="font-semibold">Clear this week?</h3>
+          <div className="paper-card p-6 max-w-sm w-full space-y-4">
+            <h3 className="font-display font-bold">Clear this week?</h3>
             <p className="text-sm text-muted-foreground">
               This will remove all meals from{" "}
-              {format(weekStart, "MMM d")} - {format(weekEnd, "MMM d")}.
+              {format(weekStart, "MMM d")} – {format(weekEnd, "MMM d")}.
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowClearConfirm(false)}
-                className="flex-1 py-2 rounded-lg border hover:bg-secondary text-sm"
+                className="flex-1 py-2 border hover:bg-secondary font-hand text-base rounded"
               >
                 Cancel
               </button>
               <button
                 onClick={clearWeek}
-                className="flex-1 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium"
+                className="flex-1 py-2 bg-destructive text-destructive-foreground font-hand text-base font-bold rounded"
               >
                 Clear Week
               </button>

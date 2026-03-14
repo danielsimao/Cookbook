@@ -143,12 +143,12 @@ export default function EditRecipePage() {
         >
           <ArrowLeft className="h-4 w-4" />
         </Link>
-        <h1 className="text-2xl font-bold">Edit Recipe</h1>
+        <h1 className="font-display text-2xl font-bold hand-underline">Edit Recipe</h1>
       </div>
 
       {/* Basic Info */}
-      <div className="rounded-xl border bg-card p-6 space-y-4">
-        <h2 className="font-semibold">Basic Info</h2>
+      <div className="paper-card p-6 space-y-4">
+        <h2 className="section-header">Basic Info</h2>
         <div>
           <label className="text-sm font-medium text-muted-foreground">Title *</label>
           <input
@@ -208,9 +208,9 @@ export default function EditRecipePage() {
       </div>
 
       {/* Ingredients */}
-      <div className="rounded-xl border bg-card p-6 space-y-3">
+      <div className="paper-card p-6 space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold">Ingredients</h2>
+          <h2 className="section-header">Ingredients</h2>
           <button onClick={() => setIngredients([...ingredients, { name: "", quantity: "", unit: "", group: "", toTaste: false }])} className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
             <Plus className="h-3 w-3" /> Add
           </button>
@@ -246,16 +246,16 @@ export default function EditRecipePage() {
       <SortableStepList steps={steps} onChange={setSteps} />
 
       {/* Notes */}
-      <div className="rounded-xl border bg-card p-6 space-y-3">
-        <h2 className="font-semibold">Notes</h2>
+      <div className="paper-card p-6 space-y-3">
+        <h2 className="section-header">Notes</h2>
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className="w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none" />
       </div>
 
       <div className="flex gap-3">
-        <Link href={`/recipes/${id}`} className="flex-1 py-3 rounded-lg border text-center hover:bg-secondary text-sm font-medium">
+        <Link href={`/recipes/${id}`} className="flex-1 py-3 border text-center hover:bg-secondary font-hand text-lg rounded">
           Cancel
         </Link>
-        <button onClick={handleSave} disabled={saving || !title.trim()} className="flex-1 py-3 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2">
+        <button onClick={handleSave} disabled={saving || !title.trim()} className="flex-1 btn-cookbook disabled:opacity-50 flex items-center justify-center gap-2">
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}
           {saving ? "Saving..." : "Save Changes"}
         </button>

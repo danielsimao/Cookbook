@@ -61,8 +61,8 @@ export default function PantryPage() {
   return (
     <div className="p-4 md:p-8 max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Pantry</h1>
-        <p className="text-sm text-muted-foreground mt-1">
+        <h1 className="font-display text-2xl font-bold hand-underline">Pantry</h1>
+        <p className="font-hand text-base text-muted-foreground mt-1">
           Items you already have at home. These will be highlighted on your shopping list.
         </p>
       </div>
@@ -75,12 +75,12 @@ export default function PantryPage() {
           onChange={(e) => setNewItem(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && addItem()}
           placeholder="Add ingredient to pantry..."
-          className="flex-1 px-4 py-2.5 rounded-lg border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          className="input-cookbook flex-1 px-4 py-2.5 text-sm"
         />
         <button
           onClick={addItem}
           disabled={!newItem.trim()}
-          className="px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50"
+          className="btn-cookbook px-4 py-2.5 disabled:opacity-50"
         >
           <Plus className="h-4 w-4" />
         </button>
@@ -95,7 +95,7 @@ export default function PantryPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Filter pantry..."
-            className="w-full pl-10 pr-4 py-2 rounded-lg border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="input-cookbook w-full pl-10 pr-4 py-2 text-sm"
           />
         </div>
       )}
@@ -108,11 +108,11 @@ export default function PantryPage() {
           ))}
         </div>
       ) : filtered.length > 0 ? (
-        <div className="space-y-1">
+        <div className="space-y-0">
           {filtered.map((item) => (
             <div
               key={item.id}
-              className="flex items-center justify-between p-3 rounded-lg border bg-card group"
+              className="flex items-center justify-between p-3 border-b border-border group"
             >
               <span className="text-sm">{item.name}</span>
               <button
@@ -126,8 +126,7 @@ export default function PantryPage() {
         </div>
       ) : (
         <div className="text-center py-12">
-          <Package className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-          <p className="text-muted-foreground">
+          <p className="font-hand text-base text-muted-foreground">
             {items.length === 0
               ? "Your pantry is empty"
               : "No items match your search"}
@@ -135,7 +134,7 @@ export default function PantryPage() {
         </div>
       )}
 
-      <p className="text-xs text-muted-foreground text-center">
+      <p className="font-hand text-xs text-muted-foreground text-center">
         {items.length} item{items.length !== 1 ? "s" : ""} in pantry
       </p>
     </div>

@@ -177,37 +177,37 @@ function NewRecipePage() {
         >
           <ArrowLeft className="h-4 w-4" />
         </Link>
-        <h1 className="text-2xl font-bold">Add Recipe</h1>
+        <h1 className="font-display text-2xl font-bold hand-underline">Add Recipe</h1>
       </div>
 
       {/* Tab selector */}
-      <div className="flex gap-1 p-1 rounded-lg bg-muted">
+      <div className="flex gap-2">
         <button
           onClick={() => setActiveTab("manual")}
-          className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+          className={`washi-tape flex-1 text-center transition-opacity ${
             activeTab === "manual"
-              ? "bg-card text-foreground shadow-sm"
-              : "text-muted-foreground"
+              ? "washi-tape-pink opacity-100 font-bold"
+              : "bg-muted opacity-60"
           }`}
         >
           Manual
         </button>
         <button
           onClick={() => setActiveTab("url")}
-          className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+          className={`washi-tape flex-1 text-center transition-opacity ${
             activeTab === "url"
-              ? "bg-card text-foreground shadow-sm"
-              : "text-muted-foreground"
+              ? "washi-tape-blue opacity-100 font-bold"
+              : "bg-muted opacity-60"
           }`}
         >
           From URL
         </button>
         <button
           onClick={() => setActiveTab("photo")}
-          className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+          className={`washi-tape flex-1 text-center transition-opacity ${
             activeTab === "photo"
-              ? "bg-card text-foreground shadow-sm"
-              : "text-muted-foreground"
+              ? "washi-tape-yellow opacity-100 font-bold"
+              : "bg-muted opacity-60"
           }`}
         >
           From Photo
@@ -216,7 +216,7 @@ function NewRecipePage() {
 
       {/* URL Import */}
       {activeTab === "url" && (
-        <div className="rounded-xl border bg-card p-6 space-y-4">
+        <div className="paper-card p-6 space-y-4">
           <div className="text-center">
             <LinkIcon className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
             <h2 className="font-semibold">Import from URL</h2>
@@ -256,7 +256,7 @@ function NewRecipePage() {
 
       {/* Photo Import */}
       {activeTab === "photo" && (
-        <div className="rounded-xl border bg-card p-6 space-y-4">
+        <div className="paper-card p-6 space-y-4">
           <div className="text-center">
             <ImageIcon className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
             <h2 className="font-semibold">Import from Photo</h2>
@@ -285,8 +285,8 @@ function NewRecipePage() {
       {activeTab === "manual" && (
         <div className="space-y-6">
           {/* Basic Info */}
-          <div className="rounded-xl border bg-card p-6 space-y-4">
-            <h2 className="font-semibold">Basic Info</h2>
+          <div className="paper-card p-6 space-y-4">
+            <h2 className="section-header">Basic Info</h2>
 
             <div>
               <label className="text-sm font-medium text-muted-foreground">
@@ -398,9 +398,9 @@ function NewRecipePage() {
           </div>
 
           {/* Ingredients */}
-          <div className="rounded-xl border bg-card p-6 space-y-3">
+          <div className="paper-card p-6 space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="font-semibold">Ingredients</h2>
+              <h2 className="section-header">Ingredients</h2>
               <button
                 onClick={addIngredient}
                 className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
@@ -470,8 +470,8 @@ function NewRecipePage() {
           <SortableStepList steps={steps} onChange={setSteps} />
 
           {/* Notes */}
-          <div className="rounded-xl border bg-card p-6 space-y-3">
-            <h2 className="font-semibold">Notes</h2>
+          <div className="paper-card p-6 space-y-3">
+            <h2 className="section-header">Notes</h2>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -486,7 +486,7 @@ function NewRecipePage() {
             <button
               onClick={handleSave}
               disabled={saving || !title.trim()}
-              className="flex-1 py-3 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex-1 btn-cookbook disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {saving && <Loader2 className="h-4 w-4 animate-spin" />}
               {saving ? "Saving..." : "Save Recipe"}

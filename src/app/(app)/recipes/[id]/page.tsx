@@ -5,8 +5,6 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
-  Clock,
-  Users,
   Heart,
   Edit,
   Trash2,
@@ -16,6 +14,9 @@ import {
   Plus,
 } from "lucide-react";
 import { toast } from "@/components/toaster";
+import { TapedPhoto } from "@/components/scrapbook/taped-photo";
+import { SectionHeader } from "@/components/scrapbook/section-header";
+import { StampBadge } from "@/components/scrapbook/stamp-badge";
 
 interface Recipe {
   id: string;
@@ -84,8 +85,8 @@ export default function RecipeDetailPage() {
     return (
       <div className="p-4 md:p-8 max-w-3xl mx-auto space-y-4">
         <div className="h-8 w-48 bg-muted animate-pulse rounded" />
-        <div className="h-64 bg-muted animate-pulse rounded-xl" />
-        <div className="h-32 bg-muted animate-pulse rounded-xl" />
+        <div className="h-64 bg-muted animate-pulse rounded" />
+        <div className="h-32 bg-muted animate-pulse rounded" />
       </div>
     );
   }
@@ -93,8 +94,8 @@ export default function RecipeDetailPage() {
   if (!recipe) {
     return (
       <div className="p-4 md:p-8 max-w-3xl mx-auto text-center py-16">
-        <p className="text-muted-foreground">Recipe not found</p>
-        <Link href="/recipes" className="text-primary hover:underline mt-2 inline-block">
+        <p className="text-muted-foreground font-hand text-lg">Recipe not found</p>
+        <Link href="/recipes" className="text-primary hover:underline mt-2 inline-block font-hand">
           Back to recipes
         </Link>
       </div>
@@ -112,14 +113,14 @@ export default function RecipeDetailPage() {
       <div className="flex items-center gap-3">
         <Link
           href="/recipes"
-          className="p-2 rounded-lg hover:bg-secondary transition-colors"
+          className="p-2 hover:bg-secondary transition-colors rounded"
         >
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div className="flex-1" />
         <button
           onClick={toggleFavorite}
-          className="p-2 rounded-lg hover:bg-secondary transition-colors"
+          className="p-2 hover:bg-secondary transition-colors rounded"
         >
           <Heart
             className={`h-5 w-5 ${
@@ -129,20 +130,20 @@ export default function RecipeDetailPage() {
         </button>
         <Link
           href={`/recipes/${id}/edit`}
-          className="p-2 rounded-lg hover:bg-secondary transition-colors"
+          className="p-2 hover:bg-secondary transition-colors rounded"
         >
           <Edit className="h-5 w-5 text-muted-foreground" />
         </Link>
         <Link
           href={`/recipes/${id}/cook`}
-          className="p-2 rounded-lg hover:bg-secondary transition-colors"
+          className="p-2 hover:bg-secondary transition-colors rounded"
           title="Cooking mode"
         >
           <ChefHat className="h-5 w-5 text-muted-foreground" />
         </Link>
         <button
           onClick={() => setShowDeleteConfirm(true)}
-          className="p-2 rounded-lg hover:bg-secondary transition-colors"
+          className="p-2 hover:bg-secondary transition-colors rounded"
         >
           <Trash2 className="h-5 w-5 text-muted-foreground" />
         </button>
@@ -150,63 +151,38 @@ export default function RecipeDetailPage() {
 
       {/* Image */}
       {recipe.imageUrl && (
-        <div className="rounded-xl overflow-hidden aspect-video bg-muted">
-          <img
-            src={recipe.imageUrl}
-            alt={recipe.title}
-            className="w-full h-full object-cover"
-          />
+        <div className="max-w-lg mx-auto">
+          <TapedPhoto src={recipe.imageUrl} alt={recipe.title} />
         </div>
       )}
 
       {/* Title & Meta */}
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold">{recipe.title}</h1>
+        <h1 className="font-display text-2xl md:text-3xl font-bold hand-underline">
+          {recipe.title}
+        </h1>
         {recipe.description && (
-          <p className="text-muted-foreground mt-2">{recipe.description}</p>
+          <p className="text-muted-foreground mt-4 italic leading-relaxed">
+            {recipe.description}
+          </p>
         )}
 
-        <div className="flex flex-wrap items-center gap-3 mt-4 text-sm text-muted-foreground">
-          {totalTime > 0 && (
-            <span className="flex items-center gap-1">
-              <Clock className="h-4 w-4" />
-              {totalTime} min
-              {recipe.prepTime && recipe.cookTime && (
-                <span className="text-xs">
-                  ({recipe.prepTime}m prep + {recipe.cookTime}m cook)
-                </span>
-              )}
-            </span>
-          )}
-          <span className="flex items-center gap-1">
-            <Users className="h-4 w-4" />
-            {scaledServings} servings
-          </span>
-          {recipe.cuisine && <span>{recipe.cuisine}</span>}
-          {recipe.mealType && (
-            <span className="capitalize">{recipe.mealType}</span>
-          )}
+        {/* Stamp badges for metadata */}
+        <div className="flex flex-wrap gap-3 mt-4">
+          {recipe.mealType && <StampBadge>{recipe.mealType}</StampBadge>}
+          {recipe.cuisine && <StampBadge>{recipe.cuisine}</StampBadge>}
+          {totalTime > 0 && <StampBadge>{totalTime} min</StampBadge>}
+          {recipe.tags.map((tag) => (
+            <StampBadge key={tag}>{tag}</StampBadge>
+          ))}
         </div>
-
-        {recipe.tags.length > 0 && (
-          <div className="flex gap-1.5 mt-3 flex-wrap">
-            {recipe.tags.map((tag) => (
-              <span
-                key={tag}
-                className="px-2 py-1 rounded-full text-xs bg-secondary text-secondary-foreground"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
 
         {recipe.sourceUrl && (
           <a
             href={recipe.sourceUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 mt-3 text-sm text-primary hover:underline"
+            className="inline-flex items-center gap-1 mt-3 text-sm text-primary hover:underline font-hand text-base"
           >
             <ExternalLink className="h-3 w-3" />
             View original
@@ -215,85 +191,85 @@ export default function RecipeDetailPage() {
       </div>
 
       {/* Scale */}
-      <div className="flex items-center gap-3 p-3 rounded-xl border bg-card">
-        <span className="text-sm font-medium">Scale</span>
-        <button
-          onClick={() => setScale(Math.max(0.25, scale - 0.25))}
-          className="p-1.5 rounded-lg border hover:bg-secondary"
-        >
-          <Minus className="h-3 w-3" />
-        </button>
-        <span className="text-sm font-medium min-w-[3rem] text-center">
-          {scale}x
-        </span>
-        <button
-          onClick={() => setScale(scale + 0.25)}
-          className="p-1.5 rounded-lg border hover:bg-secondary"
-        >
-          <Plus className="h-3 w-3" />
-        </button>
-        {scale !== 1 && (
+      <div className="paper-card flex items-center gap-3 p-3">
+        <span className="font-hand text-lg">Servings: {scaledServings}</span>
+        <div className="flex items-center gap-2 ml-auto">
           <button
-            onClick={() => setScale(1)}
-            className="text-xs text-primary hover:underline ml-2"
+            onClick={() => setScale(Math.max(0.25, scale - 0.25))}
+            className="w-8 h-8 rounded-full border-2 border-border bg-card flex items-center justify-center hover:bg-secondary"
           >
-            Reset
+            <Minus className="h-3 w-3" />
           </button>
-        )}
+          <span className="font-hand text-lg min-w-[3rem] text-center">
+            {scale}x
+          </span>
+          <button
+            onClick={() => setScale(scale + 0.25)}
+            className="w-8 h-8 rounded-full border-2 border-border bg-card flex items-center justify-center hover:bg-secondary"
+          >
+            <Plus className="h-3 w-3" />
+          </button>
+          {scale !== 1 && (
+            <button
+              onClick={() => setScale(1)}
+              className="text-sm text-primary hover:underline ml-1 font-hand"
+            >
+              Reset
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Ingredients */}
       {sortedIngredients.length > 0 && (
-        <div className="rounded-xl border bg-card p-6 space-y-3">
-          <h2 className="font-semibold text-lg">Ingredients</h2>
-          <ul className="space-y-2">
+        <div className="paper-card lined-paper p-6 relative z-[2] -mb-2">
+          <SectionHeader>Ingredients</SectionHeader>
+          <div className="flex flex-col">
             {sortedIngredients.map((ing) => {
               const scaledQty = !ing.toTaste && ing.quantity ? Math.round(ing.quantity * scale * 100) / 100 : null;
               return (
-                <li key={ing.id} className="flex items-start gap-3 text-sm">
-                  <span className="mt-0.5 h-4 w-4 rounded border shrink-0" />
-                  <span>
+                <div key={ing.id} className="flex items-center gap-3 py-2 min-h-[40px]">
+                  <span className="hand-check mt-0.5" />
+                  <span className="text-sm">
                     {ing.toTaste ? (
                       <span className="italic text-muted-foreground">to taste </span>
                     ) : (
                       <>
                         {scaledQty && (
-                          <span className="font-medium">{scaledQty} </span>
+                          <span className="font-semibold">{scaledQty} </span>
                         )}
                         {ing.unit && <span>{ing.unit} </span>}
                       </>
                     )}
                     {ing.name}
                   </span>
-                </li>
+                </div>
               );
             })}
-          </ul>
+          </div>
         </div>
       )}
 
       {/* Steps */}
       {sortedSteps.length > 0 && (
-        <div className="rounded-xl border bg-card p-6 space-y-4">
-          <h2 className="font-semibold text-lg">Instructions</h2>
-          <ol className="space-y-4">
+        <div className="paper-card p-6 space-y-4">
+          <SectionHeader>Instructions</SectionHeader>
+          <div className="space-y-5">
             {sortedSteps.map((step, i) => (
-              <li key={step.id} className="flex gap-4">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
-                  {i + 1}
-                </span>
-                <p className="text-sm leading-relaxed pt-1">{step.text}</p>
-              </li>
+              <div key={step.id} className="flex gap-4">
+                <div className="step-circle">{i + 1}</div>
+                <p className="text-sm leading-relaxed pt-1.5">{step.text}</p>
+              </div>
             ))}
-          </ol>
+          </div>
         </div>
       )}
 
       {/* Notes */}
       {recipe.notes && (
-        <div className="rounded-xl border bg-card p-6 space-y-2">
-          <h2 className="font-semibold text-lg">Notes</h2>
-          <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+        <div className="sticky-note">
+          <SectionHeader className="!text-[1.3rem]">Notes</SectionHeader>
+          <p className="font-hand text-lg leading-relaxed text-secondary-foreground">
             {recipe.notes}
           </p>
         </div>
@@ -302,21 +278,21 @@ export default function RecipeDetailPage() {
       {/* Delete Confirmation */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-card rounded-xl p-6 max-w-sm w-full space-y-4">
-            <h3 className="font-semibold">Delete recipe?</h3>
+          <div className="paper-card p-6 max-w-sm w-full space-y-4">
+            <h3 className="font-display font-bold">Delete recipe?</h3>
             <p className="text-sm text-muted-foreground">
               This will permanently delete &quot;{recipe.title}&quot; and remove it from any meal plans.
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 py-2 rounded-lg border hover:bg-secondary text-sm"
+                className="flex-1 py-2 border hover:bg-secondary text-sm font-hand text-lg rounded"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDelete}
-                className="flex-1 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium"
+                className="flex-1 py-2 bg-destructive text-destructive-foreground text-sm font-medium rounded"
               >
                 Delete
               </button>

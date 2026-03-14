@@ -17,7 +17,7 @@ export default function CookingModePage() {
   const { id } = useParams();
   const router = useRouter();
   const [recipe, setRecipe] = useState<Recipe | null>(null);
-  const [currentStep, setCurrentStep] = useState(-1); // -1 = ingredients view
+  const [currentStep, setCurrentStep] = useState(-1);
   const [checkedIngredients, setCheckedIngredients] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -27,7 +27,6 @@ export default function CookingModePage() {
   }, [id]);
 
   useEffect(() => {
-    // Keep screen awake during cooking
     let wakeLock: WakeLockSentinel | null = null;
     if ("wakeLock" in navigator) {
       navigator.wakeLock.request("screen").then((wl) => {
@@ -62,36 +61,38 @@ export default function CookingModePage() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Top bar */}
-      <div className="flex items-center justify-between p-4 border-b">
+      <div className="flex items-center justify-between p-4 border-b bg-card">
         <button
           onClick={() => router.push(`/recipes/${id}`)}
-          className="p-2 rounded-lg hover:bg-secondary"
+          className="p-2 hover:bg-secondary rounded"
         >
           <X className="h-5 w-5" />
         </button>
-        <h1 className="font-semibold text-sm truncate max-w-[60%]">
+        <h1 className="font-display font-bold text-sm truncate max-w-[60%]">
           {recipe.title}
         </h1>
-        <span className="text-xs text-muted-foreground">
+        <span className="font-hand text-base text-muted-foreground">
           {isIngredients ? "Ingredients" : isDone ? "Done!" : `Step ${currentStep + 1}/${totalSteps}`}
         </span>
       </div>
 
-      {/* Progress bar */}
-      <div className="h-1 bg-muted">
+      {/* Torn edge + progress */}
+      <div className="torn-edge h-px bg-border" />
+      <div className="h-1 bg-muted mt-2">
         <div
           className="h-full bg-primary transition-all duration-300"
           style={{
             width: `${isDone ? 100 : ((currentStep + 1) / (totalSteps + 1)) * 100}%`,
+            backgroundImage: "repeating-linear-gradient(90deg, transparent, transparent 6px, rgba(255,255,255,0.3) 6px, rgba(255,255,255,0.3) 10px)",
           }}
         />
       </div>
 
       {/* Content */}
-      <div className="flex-1 flex items-center justify-center p-6">
+      <div className="flex-1 flex items-center justify-center p-4 md:p-6">
         {isIngredients ? (
-          <div className="w-full max-w-lg space-y-4">
-            <h2 className="text-2xl font-bold text-center mb-6">
+          <div className="w-full max-w-lg space-y-4 watercolor-wash p-4 rounded">
+            <h2 className="font-display text-xl md:text-2xl font-bold text-center mb-6">
               Gather your ingredients
             </h2>
             <ul className="space-y-3">
@@ -100,27 +101,27 @@ export default function CookingModePage() {
                   key={ing.id}
                   onClick={() => toggleIngredient(ing.id)}
                   className={cn(
-                    "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
+                    "flex items-center gap-3 p-3 rounded border cursor-pointer transition-colors",
                     checkedIngredients.has(ing.id)
-                      ? "bg-primary/10 border-primary/30"
-                      : "hover:bg-secondary"
+                      ? "bg-accent/20 border-accent"
+                      : "bg-card hover:bg-secondary"
                   )}
                 >
                   <div
                     className={cn(
-                      "h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
+                      "h-6 w-6 flex items-center justify-center shrink-0 transition-colors",
                       checkedIngredients.has(ing.id)
-                        ? "bg-primary border-primary"
-                        : "border-muted-foreground"
+                        ? "bg-accent border-accent-foreground hand-check border-2"
+                        : "hand-check"
                     )}
                   >
                     {checkedIngredients.has(ing.id) && (
-                      <Check className="h-3 w-3 text-primary-foreground" />
+                      <Check className="h-3.5 w-3.5 text-accent-foreground" />
                     )}
                   </div>
                   <span
                     className={cn(
-                      "text-lg",
+                      "text-base md:text-lg",
                       checkedIngredients.has(ing.id) && "line-through text-muted-foreground"
                     )}
                   >
@@ -128,7 +129,7 @@ export default function CookingModePage() {
                       <span className="italic text-muted-foreground">to taste </span>
                     ) : (
                       <>
-                        {ing.quantity && <span className="font-medium">{ing.quantity} </span>}
+                        {ing.quantity && <span className="font-semibold">{ing.quantity} </span>}
                         {ing.unit && <span>{ing.unit} </span>}
                       </>
                     )}
@@ -139,23 +140,23 @@ export default function CookingModePage() {
             </ul>
           </div>
         ) : isDone ? (
-          <div className="text-center space-y-4">
+          <div className="text-center space-y-4 watercolor-wash p-8 rounded">
             <span className="text-6xl block">🎉</span>
-            <h2 className="text-3xl font-bold">All done!</h2>
-            <p className="text-muted-foreground text-lg">Enjoy your meal</p>
+            <h2 className="font-display text-3xl font-bold">All done!</h2>
+            <p className="text-muted-foreground font-hand text-xl">Enjoy your meal</p>
             <button
               onClick={() => router.push(`/recipes/${id}`)}
-              className="px-6 py-3 rounded-lg bg-primary text-primary-foreground font-medium"
+              className="btn-cookbook"
             >
               Back to recipe
             </button>
           </div>
         ) : (
-          <div className="w-full max-w-lg text-center space-y-6">
-            <span className="text-6xl font-bold text-primary">
+          <div className="w-full max-w-lg text-center space-y-6 watercolor-wash p-6 md:p-8 rounded">
+            <div className="step-circle mx-auto" style={{ width: 72, height: 72, fontSize: "2rem", borderWidth: 3 }}>
               {currentStep + 1}
-            </span>
-            <p className="text-xl md:text-2xl leading-relaxed">
+            </div>
+            <p className="text-lg md:text-xl leading-relaxed">
               {sortedSteps[currentStep].text}
             </p>
           </div>
@@ -164,23 +165,26 @@ export default function CookingModePage() {
 
       {/* Navigation */}
       {!isDone && (
-        <div className="flex items-center justify-between p-4 border-t">
-          <button
-            onClick={() => setCurrentStep(Math.max(-1, currentStep - 1))}
-            disabled={isIngredients}
-            className="flex items-center gap-2 px-4 py-3 rounded-lg border hover:bg-secondary disabled:opacity-30 text-sm font-medium"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            {currentStep === 0 ? "Ingredients" : "Previous"}
-          </button>
-          <button
-            onClick={() => setCurrentStep(currentStep + 1)}
-            className="flex items-center gap-2 px-6 py-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90"
-          >
-            {currentStep === totalSteps - 1 ? "Finish" : isIngredients ? "Start Cooking" : "Next"}
-            <ArrowRight className="h-4 w-4" />
-          </button>
-        </div>
+        <>
+          <div className="torn-edge h-px bg-border" />
+          <div className="flex items-center justify-between p-4 mt-2">
+            <button
+              onClick={() => setCurrentStep(Math.max(-1, currentStep - 1))}
+              disabled={isIngredients}
+              className="flex items-center gap-2 px-4 py-3 border bg-card hover:bg-secondary disabled:opacity-30 font-hand text-base rounded"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              {currentStep === 0 ? "Ingredients" : "Previous"}
+            </button>
+            <button
+              onClick={() => setCurrentStep(currentStep + 1)}
+              className="btn-cookbook flex items-center gap-2"
+            >
+              {currentStep === totalSteps - 1 ? "Finish" : isIngredients ? "Start Cooking" : "Next"}
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
+        </>
       )}
     </div>
   );

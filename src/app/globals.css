@@ -24,55 +24,38 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-sans: var(--font-body), Georgia, "Times New Roman", serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: #fafaf9;
-  --foreground: #1c1917;
-  --primary: #ea580c;
-  --primary-foreground: #ffffff;
-  --secondary: #f5f5f4;
-  --secondary-foreground: #1c1917;
-  --muted: #f5f5f4;
-  --muted-foreground: #78716c;
-  --accent: #fed7aa;
-  --accent-foreground: #9a3412;
-  --destructive: #dc2626;
+  --radius: 0.25rem;
+  --background: #f5f0e8;
+  --foreground: #3b2314;
+  --primary: #c2410c;
+  --primary-foreground: #fef3e2;
+  --secondary: #fde8cd;
+  --secondary-foreground: #6b3a1f;
+  --muted: #ede5d8;
+  --muted-foreground: #8b7355;
+  --accent: #a3c9a8;
+  --accent-foreground: #2d5a3d;
+  --destructive: #b91c1c;
   --destructive-foreground: #ffffff;
-  --border: #e7e5e4;
-  --input: #e7e5e4;
-  --ring: #ea580c;
-  --card: #ffffff;
-  --card-foreground: #1c1917;
-  --popover: #ffffff;
-  --popover-foreground: #1c1917;
-}
+  --border: #d4c5aa;
+  --input: #d4c5aa;
+  --ring: #c2410c;
+  --card: #faf6ef;
+  --card-foreground: #3b2314;
+  --popover: #faf6ef;
+  --popover-foreground: #3b2314;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #1c1917;
-    --foreground: #fafaf9;
-    --primary: #fb923c;
-    --primary-foreground: #1c1917;
-    --secondary: #292524;
-    --secondary-foreground: #fafaf9;
-    --muted: #292524;
-    --muted-foreground: #a8a29e;
-    --accent: #431407;
-    --accent-foreground: #fed7aa;
-    --destructive: #ef4444;
-    --destructive-foreground: #ffffff;
-    --border: #44403c;
-    --input: #44403c;
-    --ring: #fb923c;
-    --card: #292524;
-    --card-foreground: #fafaf9;
-    --popover: #292524;
-    --popover-foreground: #fafaf9;
-  }
+  /* Scrapbook colors */
+  --washi-pink: #e8a0b4;
+  --washi-blue: #8bb8d9;
+  --washi-green: #a3c9a8;
+  --washi-yellow: #f0d58c;
+  --stamp-red: #8b2020;
 }
 
 * {
@@ -85,4 +68,276 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-image:
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(139,115,85,0.03) 2px, rgba(139,115,85,0.03) 4px),
+    repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(139,115,85,0.02) 2px, rgba(139,115,85,0.02) 4px);
+}
+
+/* ========== SCRAPBOOK TYPOGRAPHY ========== */
+
+.font-display {
+  font-family: var(--font-display), Georgia, serif;
+}
+
+.font-hand {
+  font-family: var(--font-hand), cursive;
+}
+
+.font-body {
+  font-family: var(--font-body), Georgia, serif;
+}
+
+/* ========== SCRAPBOOK COMPONENTS ========== */
+
+/* Paper card */
+.paper-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: 2px 3px 8px rgba(59,35,20,0.08), 0 1px 2px rgba(59,35,20,0.05);
+  border-radius: 3px;
+  position: relative;
+}
+
+/* Hand-drawn underline */
+.hand-underline {
+  position: relative;
+  display: inline-block;
+}
+.hand-underline::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: -2px;
+  right: -2px;
+  height: 3px;
+  background: var(--primary);
+  border-radius: 2px;
+  transform: rotate(-0.5deg);
+  opacity: 0.45;
+}
+
+/* Section header */
+.section-header {
+  font-family: var(--font-hand), cursive;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--foreground);
+  position: relative;
+  display: inline-block;
+  margin-bottom: 16px;
+}
+.section-header::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: -4px;
+  right: -4px;
+  height: 3px;
+  background: var(--primary);
+  border-radius: 2px;
+  transform: rotate(-0.8deg);
+  opacity: 0.4;
+}
+
+/* Stamp badge */
+.stamp-badge {
+  font-family: var(--font-hand), cursive;
+  font-size: 0.85rem;
+  padding: 2px 10px;
+  border: 2px solid var(--stamp-red);
+  color: var(--stamp-red);
+  border-radius: 2px;
+  display: inline-block;
+  transform: rotate(-3deg);
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.stamp-badge:nth-child(2) { transform: rotate(2deg); border-color: var(--accent-foreground); color: var(--accent-foreground); }
+.stamp-badge:nth-child(3) { transform: rotate(-1deg); border-color: var(--muted-foreground); color: var(--muted-foreground); }
+.stamp-badge:nth-child(4) { transform: rotate(1.5deg); border-color: var(--primary); color: var(--primary); }
+
+/* Washi tape */
+.washi-tape {
+  display: inline-block;
+  padding: 4px 14px;
+  font-family: var(--font-hand), cursive;
+  font-size: 0.95rem;
+  border-radius: 1px;
+  opacity: 0.85;
+}
+.washi-tape-pink { background: var(--washi-pink); color: #5a1a30; }
+.washi-tape-blue { background: var(--washi-blue); color: #1a3a5a; }
+.washi-tape-green { background: var(--washi-green); color: #1a4a2a; }
+.washi-tape-yellow { background: var(--washi-yellow); color: #5a4a1a; }
+
+/* Recipe card (index card style) */
+.recipe-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--primary);
+  box-shadow: 2px 3px 6px rgba(59,35,20,0.1);
+  border-radius: 2px;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.recipe-card:hover {
+  box-shadow: 4px 6px 16px rgba(59,35,20,0.15);
+}
+@media (min-width: 768px) {
+  .recipe-card:nth-child(4n+1) { transform: rotate(-1.2deg); }
+  .recipe-card:nth-child(4n+2) { transform: rotate(0.8deg); }
+  .recipe-card:nth-child(4n+3) { transform: rotate(-0.5deg); }
+  .recipe-card:nth-child(4n+4) { transform: rotate(1.2deg); }
+  .recipe-card:hover { transform: rotate(0deg) translateY(-4px) !important; }
+}
+
+/* Taped photo */
+.photo-taped {
+  border: 6px solid var(--card);
+  box-shadow: 1px 2px 8px rgba(59,35,20,0.15);
+  border-radius: 2px;
+  position: relative;
+  overflow: visible;
+}
+@media (min-width: 768px) {
+  .photo-taped { transform: rotate(-1.5deg); }
+}
+.photo-taped::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%) rotate(2deg);
+  width: 90px;
+  height: 22px;
+  background: var(--washi-yellow);
+  opacity: 0.7;
+  border-radius: 1px;
+  z-index: 2;
+}
+
+/* Step circle (hand-drawn feel) */
+.step-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50% 45% 55% 48%;
+  border: 2.5px solid var(--primary);
+  color: var(--primary);
+  font-family: var(--font-hand), cursive;
+  font-weight: 700;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Hand-drawn checkbox */
+.hand-check {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--muted-foreground);
+  border-radius: 50% 40% 55% 45%;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+/* Lined paper background */
+.lined-paper {
+  background-image: repeating-linear-gradient(
+    transparent, transparent 31px, var(--border) 31px, var(--border) 32px
+  );
+  background-position: 0 8px;
+}
+
+/* Watercolor wash */
+.watercolor-wash {
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(234,134,58,0.1) 0%, transparent 70%),
+    radial-gradient(ellipse at 70% 80%, rgba(122,178,130,0.08) 0%, transparent 60%);
+}
+
+/* Torn edge */
+.torn-edge {
+  position: relative;
+}
+.torn-edge::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: var(--card);
+  clip-path: polygon(
+    0% 0%, 3% 60%, 6% 20%, 9% 80%, 12% 30%, 15% 70%,
+    18% 10%, 21% 90%, 24% 40%, 27% 60%, 30% 20%, 33% 80%,
+    36% 30%, 39% 70%, 42% 10%, 45% 90%, 48% 40%, 51% 60%,
+    54% 20%, 57% 80%, 60% 30%, 63% 70%, 66% 10%, 69% 90%,
+    72% 40%, 75% 60%, 78% 20%, 81% 80%, 84% 30%, 87% 70%,
+    90% 10%, 93% 90%, 96% 40%, 100% 0%
+  );
+}
+
+/* Sticky note */
+.sticky-note {
+  border: 2px dashed var(--border);
+  padding: 16px 20px;
+  border-radius: 2px;
+  background: linear-gradient(135deg, var(--card) 0%, #f7f0e0 100%);
+}
+@media (min-width: 768px) {
+  .sticky-note { transform: rotate(0.5deg); }
+}
+
+/* Cookbook button */
+.btn-cookbook {
+  font-family: var(--font-hand), cursive;
+  font-size: 1.1rem;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border: 2px solid rgba(59,35,20,0.2);
+  border-radius: 3px;
+  padding: 10px 24px;
+  box-shadow: 2px 2px 0px rgba(59,35,20,0.15);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-cookbook:hover {
+  transform: translateY(-1px);
+  box-shadow: 3px 3px 0px rgba(59,35,20,0.2);
+}
+.btn-cookbook:active {
+  transform: translateY(1px);
+  box-shadow: 1px 1px 0px rgba(59,35,20,0.15);
+}
+
+/* Cookbook input (bottom-border only) */
+.input-cookbook {
+  border: none;
+  border-bottom: 2px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  font-family: var(--font-body), Georgia, serif;
+  padding: 8px 4px;
+  font-size: 0.95rem;
+  color: var(--foreground);
+  outline: none;
+  width: 100%;
+}
+.input-cookbook:focus { border-bottom-color: var(--primary); }
+.input-cookbook::placeholder { color: var(--muted-foreground); opacity: 0.6; }
+
+/* ========== ANIMATIONS ========== */
+
+@keyframes pageSlideIn {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes gentleWobble {
+  0%, 100% { transform: rotate(-0.5deg); }
+  50% { transform: rotate(0.5deg); }
 }

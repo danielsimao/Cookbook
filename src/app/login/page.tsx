@@ -39,21 +39,20 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <span className="text-5xl mb-4 block">🍳</span>
-          <h1 className="text-2xl font-bold text-foreground">Cookbook</h1>
-          <p className="text-muted-foreground mt-1">Enter password to continue</p>
+          <h1 className="font-display text-3xl font-bold text-primary mb-2">Cookbook</h1>
+          <p className="font-hand text-lg text-muted-foreground">Enter password to continue</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="paper-card p-6 space-y-4">
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Lock className="absolute left-1 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Password"
               autoFocus
-              className="w-full pl-10 pr-4 py-3 rounded-lg border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className="input-cookbook pl-7"
             />
           </div>
 
@@ -64,7 +63,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading || !password}
-            className="w-full py-3 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
+            className="w-full btn-cookbook disabled:opacity-50"
           >
             {loading ? "Signing in..." : "Sign in"}
           </button>

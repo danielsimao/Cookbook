@@ -33,6 +33,9 @@ interface Recipe {
 
 const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack", "dessert"];
 
+const WASHI_COLORS = ["washi-tape-pink", "washi-tape-blue", "washi-tape-green", "washi-tape-yellow", "washi-tape-pink"];
+const WASHI_ROTATIONS = ["-1deg", "0.5deg", "-0.5deg", "1deg", "-0.8deg"];
+
 export default function RecipesPageWrapper() {
   return (
     <Suspense fallback={<div className="p-8 text-center text-muted-foreground">Loading...</div>}>
@@ -109,10 +112,10 @@ function RecipesPage() {
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Recipes</h1>
+        <h1 className="font-display text-2xl font-bold hand-underline">Recipes</h1>
         <Link
           href="/recipes/new"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90"
+          className="btn-cookbook inline-flex items-center gap-2 px-4 py-2"
         >
           <Plus className="h-4 w-4" />
           Add
@@ -134,7 +137,7 @@ function RecipesPage() {
               if (e.key === "Enter" && e.shiftKey) handleAiSearch();
             }}
             placeholder="Search recipes... (Shift+Enter for AI search)"
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="input-cookbook w-full pl-10 pr-4 py-2.5 text-sm"
           />
         </div>
         <button
@@ -152,27 +155,29 @@ function RecipesPage() {
         <button
           onClick={() => setFilterFavorite(!filterFavorite)}
           className={cn(
-            "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
+            "washi-tape washi-tape-pink inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors",
             filterFavorite
-              ? "bg-primary text-primary-foreground border-primary"
-              : "bg-card hover:bg-secondary"
+              ? "opacity-100 font-bold"
+              : "opacity-70 hover:opacity-90"
           )}
+          style={{ transform: 'rotate(-1deg)' }}
         >
           <Heart className="h-3 w-3" />
           Favorites
         </button>
-        {MEAL_TYPES.map((type) => (
+        {MEAL_TYPES.map((type, i) => (
           <button
             key={type}
             onClick={() =>
               setFilterMealType(filterMealType === type ? "" : type)
             }
             className={cn(
-              "px-3 py-1.5 rounded-full text-xs font-medium border capitalize transition-colors",
+              `washi-tape ${WASHI_COLORS[i]} px-3 py-1.5 text-xs font-medium capitalize transition-colors`,
               filterMealType === type
-                ? "bg-primary text-primary-foreground border-primary"
-                : "bg-card hover:bg-secondary"
+                ? "opacity-100 font-bold"
+                : "opacity-70 hover:opacity-90"
             )}
+            style={{ transform: `rotate(${WASHI_ROTATIONS[i]})` }}
           >
             {type}
           </button>
@@ -222,7 +227,7 @@ function RecipesPage() {
             <div
               key={i}
               className={cn(
-                "rounded-xl bg-muted animate-pulse",
+                "rounded bg-muted animate-pulse",
                 viewMode === "grid" ? "h-56" : "h-20"
               )}
             />
@@ -245,7 +250,7 @@ function RecipesPage() {
       ) : (
         <div className="text-center py-16">
           <span className="text-4xl block mb-3">🔍</span>
-          <p className="text-muted-foreground">
+          <p className="font-hand text-muted-foreground">
             {hasFilters
               ? "No recipes match your filters"
               : "No recipes yet. Add your first one!"}
@@ -253,7 +258,7 @@ function RecipesPage() {
         </div>
       )}
 
-      <p className="text-xs text-muted-foreground text-center">
+      <p className="font-hand text-xs text-muted-foreground text-center">
         {recipes.length} recipe{recipes.length !== 1 ? "s" : ""}
       </p>
     </div>
@@ -266,7 +271,7 @@ function RecipeGridCard({ recipe }: { recipe: Recipe }) {
   return (
     <Link
       href={`/recipes/${recipe.id}`}
-      className="group rounded-xl border bg-card overflow-hidden hover:shadow-md transition-shadow"
+      className="group recipe-card overflow-hidden hover:shadow-md transition-shadow"
     >
       <div className="aspect-[4/3] bg-muted relative overflow-hidden">
         {recipe.imageUrl ? (
@@ -287,8 +292,8 @@ function RecipeGridCard({ recipe }: { recipe: Recipe }) {
         )}
       </div>
       <div className="p-3">
-        <h3 className="font-medium text-sm line-clamp-2">{recipe.title}</h3>
-        <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">
+        <h3 className="font-display font-bold text-sm line-clamp-2">{recipe.title}</h3>
+        <div className="font-hand flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">
           {recipe.cuisine && <span>{recipe.cuisine}</span>}
           {totalTime > 0 && (
             <span className="flex items-center gap-1">
@@ -302,7 +307,7 @@ function RecipeGridCard({ recipe }: { recipe: Recipe }) {
             {recipe.tags.slice(0, 3).map((tag) => (
               <span
                 key={tag}
-                className="px-1.5 py-0.5 rounded text-[10px] bg-secondary text-secondary-foreground"
+                className="stamp-badge px-1.5 py-0.5 text-[10px]"
               >
                 {tag}
               </span>
@@ -320,7 +325,7 @@ function RecipeListCard({ recipe }: { recipe: Recipe }) {
   return (
     <Link
       href={`/recipes/${recipe.id}`}
-      className="flex items-center gap-4 p-3 rounded-xl border bg-card hover:bg-secondary transition-colors"
+      className="paper-card p-3 flex items-center gap-4 hover:bg-secondary transition-colors"
     >
       <div className="h-16 w-16 rounded-lg bg-muted overflow-hidden shrink-0">
         {recipe.imageUrl ? (
@@ -336,8 +341,8 @@ function RecipeListCard({ recipe }: { recipe: Recipe }) {
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <h3 className="font-medium text-sm truncate">{recipe.title}</h3>
-        <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+        <h3 className="font-display font-bold text-sm truncate">{recipe.title}</h3>
+        <div className="font-hand flex items-center gap-2 mt-1 text-xs text-muted-foreground">
           {recipe.cuisine && <span>{recipe.cuisine}</span>}
           {recipe.mealType && (
             <span className="capitalize">{recipe.mealType}</span>
