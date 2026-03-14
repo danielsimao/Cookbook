@@ -36,6 +36,7 @@ model Ingredient {
   quantity  Float?
   unit      String?
   group     String?
+  toTaste   Boolean @default(false)
   sortOrder Int     @default(0)
   recipeId  String
   recipe    Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)

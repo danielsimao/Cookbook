@@ -16,11 +16,14 @@ import { toast } from "@/components/toaster";
 import { SortableStepList } from "@/components/sortable-step-list";
 import { ImageField } from "@/components/image-field";
 
+import { UNIT_GROUPS } from "@/lib/units";
+
 interface IngredientInput {
   name: string;
   quantity: string;
   unit: string;
   group: string;
+  toTaste: boolean;
 }
 
 const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack", "dessert"];
@@ -57,7 +60,7 @@ function NewRecipePage() {
   const [tags, setTags] = useState("");
   const [notes, setNotes] = useState("");
   const [ingredients, setIngredients] = useState<IngredientInput[]>([
-    { name: "", quantity: "", unit: "", group: "" },
+    { name: "", quantity: "", unit: "", group: "", toTaste: false },
   ]);
   const [steps, setSteps] = useState<string[]>([""]);
   const [saving, setSaving] = useState(false);
@@ -132,9 +135,10 @@ function NewRecipePage() {
             .filter((i) => i.name.trim())
             .map((i) => ({
               name: i.name,
-              quantity: i.quantity ? parseFloat(i.quantity) : null,
+              quantity: i.toTaste ? null : (i.quantity ? parseFloat(i.quantity) : null),
               unit: i.unit || null,
               group: i.group || null,
+              toTaste: i.toTaste,
             })),
           steps: steps.filter((s) => s.trim()),
         }),
@@ -151,7 +155,7 @@ function NewRecipePage() {
   }
 
   function addIngredient() {
-    setIngredients([...ingredients, { name: "", quantity: "", unit: "", group: "" }]);
+    setIngredients([...ingredients, { name: "", quantity: "", unit: "", group: "", toTaste: false }]);
   }
 
   function removeIngredient(index: number) {
@@ -407,34 +411,57 @@ function NewRecipePage() {
             </div>
 
             {ingredients.map((ing, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={ing.quantity}
-                  onChange={(e) => updateIngredient(i, "quantity", e.target.value)}
-                  placeholder="Qty"
-                  className="w-16 px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-                <input
-                  type="text"
-                  value={ing.unit}
-                  onChange={(e) => updateIngredient(i, "unit", e.target.value)}
-                  placeholder="Unit"
-                  className="w-20 px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-                <input
-                  type="text"
-                  value={ing.name}
-                  onChange={(e) => updateIngredient(i, "name", e.target.value)}
-                  placeholder="Ingredient name"
-                  className="flex-1 px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-                <button
-                  onClick={() => removeIngredient(i)}
-                  className="p-2 text-muted-foreground hover:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+              <div key={i} className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={ing.quantity}
+                    onChange={(e) => updateIngredient(i, "quantity", e.target.value)}
+                    placeholder="Qty"
+                    disabled={ing.toTaste}
+                    className="w-16 px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+                  />
+                  <select
+                    value={ing.unit}
+                    onChange={(e) => updateIngredient(i, "unit", e.target.value)}
+                    className="w-24 px-2 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <option value="">Unit</option>
+                    {UNIT_GROUPS.map((group) => (
+                      <optgroup key={group.label} label={group.label}>
+                        {group.units.map((u) => (
+                          <option key={u} value={u}>{u}</option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    value={ing.name}
+                    onChange={(e) => updateIngredient(i, "name", e.target.value)}
+                    placeholder="Ingredient name"
+                    className="flex-1 px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                  <button
+                    onClick={() => removeIngredient(i)}
+                    className="p-2 text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+                <label className="flex items-center gap-1.5 ml-1">
+                  <input
+                    type="checkbox"
+                    checked={ing.toTaste}
+                    onChange={(e) => {
+                      const updated = [...ingredients];
+                      updated[i] = { ...updated[i], toTaste: e.target.checked, quantity: e.target.checked ? "" : updated[i].quantity };
+                      setIngredients(updated);
+                    }}
+                    className="rounded"
+                  />
+                  <span className="text-xs text-muted-foreground">To taste</span>
+                </label>
               </div>
             ))}
           </div>

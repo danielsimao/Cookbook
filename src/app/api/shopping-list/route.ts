@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
         name: ing.name,
         quantity: ing.quantity,
         unit: ing.unit,
+        toTaste: ing.toTaste,
       }))
     );
 

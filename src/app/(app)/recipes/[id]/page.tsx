@@ -31,7 +31,7 @@ interface Recipe {
   tags: string[];
   isFavorite: boolean;
   notes: string | null;
-  ingredients: { id: string; name: string; quantity: number | null; unit: string | null; group: string | null; sortOrder: number }[];
+  ingredients: { id: string; name: string; quantity: number | null; unit: string | null; group: string | null; toTaste: boolean; sortOrder: number }[];
   steps: { id: string; text: string; sortOrder: number }[];
 }
 
@@ -248,15 +248,21 @@ export default function RecipeDetailPage() {
           <h2 className="font-semibold text-lg">Ingredients</h2>
           <ul className="space-y-2">
             {sortedIngredients.map((ing) => {
-              const scaledQty = ing.quantity ? Math.round(ing.quantity * scale * 100) / 100 : null;
+              const scaledQty = !ing.toTaste && ing.quantity ? Math.round(ing.quantity * scale * 100) / 100 : null;
               return (
                 <li key={ing.id} className="flex items-start gap-3 text-sm">
                   <span className="mt-0.5 h-4 w-4 rounded border shrink-0" />
                   <span>
-                    {scaledQty && (
-                      <span className="font-medium">{scaledQty} </span>
+                    {ing.toTaste ? (
+                      <span className="italic text-muted-foreground">to taste </span>
+                    ) : (
+                      <>
+                        {scaledQty && (
+                          <span className="font-medium">{scaledQty} </span>
+                        )}
+                        {ing.unit && <span>{ing.unit} </span>}
+                      </>
                     )}
-                    {ing.unit && <span>{ing.unit} </span>}
                     {ing.name}
                   </span>
                 </li>

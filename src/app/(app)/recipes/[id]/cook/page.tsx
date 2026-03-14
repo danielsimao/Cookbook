@@ -9,7 +9,7 @@ interface Recipe {
   id: string;
   title: string;
   servings: number;
-  ingredients: { id: string; name: string; quantity: number | null; unit: string | null }[];
+  ingredients: { id: string; name: string; quantity: number | null; unit: string | null; toTaste: boolean }[];
   steps: { id: string; text: string; sortOrder: number }[];
 }
 
@@ -124,8 +124,14 @@ export default function CookingModePage() {
                       checkedIngredients.has(ing.id) && "line-through text-muted-foreground"
                     )}
                   >
-                    {ing.quantity && <span className="font-medium">{ing.quantity} </span>}
-                    {ing.unit && <span>{ing.unit} </span>}
+                    {ing.toTaste ? (
+                      <span className="italic text-muted-foreground">to taste </span>
+                    ) : (
+                      <>
+                        {ing.quantity && <span className="font-medium">{ing.quantity} </span>}
+                        {ing.unit && <span>{ing.unit} </span>}
+                      </>
+                    )}
                     {ing.name}
                   </span>
                 </li>

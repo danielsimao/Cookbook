@@ -59,13 +59,14 @@ export async function PUT(
         ingredients: {
           create: (data.ingredients ?? []).map(
             (
-              ing: { name: string; quantity?: number; unit?: string; group?: string },
+              ing: { name: string; quantity?: number; unit?: string; group?: string; toTaste?: boolean },
               index: number
             ) => ({
               name: ing.name,
               quantity: ing.quantity ?? null,
               unit: ing.unit ?? null,
               group: ing.group ?? null,
+              toTaste: ing.toTaste ?? false,
               sortOrder: index,
             })
           ),

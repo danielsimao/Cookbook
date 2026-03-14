@@ -18,6 +18,7 @@ export interface ParsedRecipe {
     quantity: number | null;
     unit: string | null;
     group: string | null;
+    toTaste: boolean;
   }[];
   steps: string[];
   imageUrl: string | null;
@@ -46,7 +47,8 @@ Return a JSON object with this exact structure (no markdown, just JSON):
   "mealType": "dinner",
   "tags": ["pasta", "quick"],
   "ingredients": [
-    {"name": "ingredient name", "quantity": 1.5, "unit": "cups", "group": null}
+    {"name": "ingredient name", "quantity": 1.5, "unit": "cups", "group": null, "toTaste": false},
+    {"name": "salt", "quantity": null, "unit": null, "group": null, "toTaste": true}
   ],
   "steps": ["Step 1 text", "Step 2 text"],
   "imageUrl": "url or null"
@@ -54,6 +56,7 @@ Return a JSON object with this exact structure (no markdown, just JSON):
 
 For mealType use one of: breakfast, lunch, dinner, snack, dessert.
 For quantities, convert fractions to decimals (1/2 = 0.5, 1/4 = 0.25).
+For ingredients with vague quantities like "to taste", "a pinch", "q.b.", or "as needed", set "toTaste": true and "quantity": null.
 If a field is unknown, use null.
 
 HTML content:
@@ -115,7 +118,7 @@ export interface MergedIngredient {
 }
 
 export async function mergeIngredients(
-  ingredients: { name: string; quantity: number | null; unit: string | null }[]
+  ingredients: { name: string; quantity: number | null; unit: string | null; toTaste?: boolean }[]
 ): Promise<MergedIngredient[]> {
   const message = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
@@ -124,9 +127,10 @@ export async function mergeIngredients(
       {
         role: "user",
         content: `Merge and organize this shopping list. Combine duplicate ingredients, sum quantities, and group by store section.
+Items marked "to taste" should keep "to taste" as their quantity — do not sum them with measured amounts.
 
 Ingredients:
-${ingredients.map((i) => `- ${i.quantity || ""} ${i.unit || ""} ${i.name}`.trim()).join("\n")}
+${ingredients.map((i) => `- ${i.toTaste ? "to taste" : `${i.quantity || ""} ${i.unit || ""}`} ${i.name}`.trim()).join("\n")}
 
 Return ONLY a JSON array, no markdown:
 [{"name": "Chicken breast", "quantity": "2 lbs", "category": "Meat & Seafood"}, ...]
@@ -175,11 +179,14 @@ export async function extractRecipeFromImage(
   "mealType": "dinner",
   "tags": ["pasta", "quick"],
   "ingredients": [
-    {"name": "ingredient name", "quantity": 1.5, "unit": "cups", "group": null}
+    {"name": "ingredient name", "quantity": 1.5, "unit": "cups", "group": null, "toTaste": false},
+    {"name": "salt", "quantity": null, "unit": null, "group": null, "toTaste": true}
   ],
   "steps": ["Step 1 text", "Step 2 text"],
   "imageUrl": null
-}`,
+}
+
+For ingredients with vague quantities like "to taste", "a pinch", "q.b.", or "as needed", set "toTaste": true and "quantity": null.`,
           },
         ],
       },
