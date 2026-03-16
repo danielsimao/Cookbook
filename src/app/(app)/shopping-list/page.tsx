@@ -10,6 +10,8 @@ import {
   RefreshCw,
   ChevronLeft,
   ChevronRight,
+  Plus,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -55,6 +57,8 @@ function ShoppingListPage() {
   const [pantryItems, setPantryItems] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [customItems, setCustomItems] = useState<string[]>([]);
+  const [newItem, setNewItem] = useState("");
 
   function navigateWeek(date: Date) {
     const ws = startOfWeek(date, { weekStartsOn: 1 });
@@ -96,9 +100,25 @@ function ShoppingListPage() {
     grouped[cat].push(ing);
   }
 
-  const totalItems = ingredients.length;
+  const totalItems = ingredients.length + customItems.length;
   const checkedCount = checked.size;
   const progress = totalItems > 0 ? (checkedCount / totalItems) * 100 : 0;
+
+  function addCustomItem() {
+    const trimmed = newItem.trim();
+    if (!trimmed || customItems.includes(trimmed)) return;
+    setCustomItems((prev) => [...prev, trimmed]);
+    setNewItem("");
+  }
+
+  function removeCustomItem(item: string) {
+    setCustomItems((prev) => prev.filter((i) => i !== item));
+    setChecked((prev) => {
+      const next = new Set(prev);
+      next.delete(`custom:${item}`);
+      return next;
+    });
+  }
 
   return (
     <div className="p-4 md:p-8 max-w-2xl mx-auto space-y-6">
@@ -181,7 +201,7 @@ function ShoppingListPage() {
             </p>
           </div>
         </div>
-      ) : ingredients.length === 0 ? (
+      ) : ingredients.length === 0 && customItems.length === 0 ? (
         <div className="text-center py-16">
           <ShoppingCart className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
           <p className="font-hand text-base text-muted-foreground">No items to buy</p>
@@ -258,6 +278,81 @@ function ShoppingListPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Extra Items */}
+      {!loading && (
+        <div className="sticky-note space-y-3">
+          <h3 className="section-header mb-2">Extra Items</h3>
+
+          {customItems.length > 0 && (
+            <div className="space-y-0">
+              {customItems.map((item) => {
+                const key = `custom:${item}`;
+                const isChecked = checked.has(key);
+                return (
+                  <div
+                    key={item}
+                    className={cn(
+                      "flex items-center gap-3 w-full p-3 rounded border-b border-border transition-colors",
+                      isChecked ? "bg-muted/50" : "hover:bg-secondary"
+                    )}
+                  >
+                    <button
+                      onClick={() => toggleCheck(key)}
+                      className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                    >
+                      <div
+                        className={cn(
+                          "hand-check flex items-center justify-center shrink-0",
+                          isChecked && "checked"
+                        )}
+                      >
+                        {isChecked && (
+                          <Check className="h-3 w-3 text-primary-foreground" />
+                        )}
+                      </div>
+                      <span
+                        className={cn(
+                          "text-sm",
+                          isChecked && "line-through text-muted-foreground"
+                        )}
+                      >
+                        {item}
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => removeCustomItem(item)}
+                      className="text-muted-foreground hover:text-destructive transition-colors shrink-0 p-1"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={newItem}
+              onChange={(e) => setNewItem(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") addCustomItem();
+              }}
+              placeholder="Add an item..."
+              className="input-cookbook flex-1 font-hand"
+            />
+            <button
+              onClick={addCustomItem}
+              disabled={!newItem.trim()}
+              className="font-hand text-primary hover:text-primary/80 disabled:text-muted-foreground transition-colors p-2"
+            >
+              <Plus className="h-5 w-5" />
+            </button>
+          </div>
         </div>
       )}
     </div>
