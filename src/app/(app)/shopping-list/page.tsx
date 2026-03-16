@@ -32,6 +32,23 @@ interface MergedIngredient {
   checked?: boolean;
 }
 
+interface CheckboxIconProps {
+  checked: boolean;
+}
+
+function CheckboxIcon({ checked }: CheckboxIconProps) {
+  return (
+    <div
+      className={cn(
+        "hand-check flex items-center justify-center shrink-0",
+        checked && "checked"
+      )}
+    >
+      {checked && <Check className="h-3 w-3 text-primary-foreground" />}
+    </div>
+  );
+}
+
 export default function ShoppingListPageWrapper() {
   return (
     <Suspense fallback={<div className="p-8 text-center text-muted-foreground font-hand">Loading...</div>}>
@@ -101,12 +118,23 @@ function ShoppingListPage() {
   }
 
   const totalItems = ingredients.length + customItems.length;
-  const checkedCount = checked.size;
+  const checkedCount =
+    ingredients.filter((i) => checked.has(i.name)).length +
+    customItems.filter((i) => checked.has(`custom:${i}`)).length;
   const progress = totalItems > 0 ? (checkedCount / totalItems) * 100 : 0;
 
   function addCustomItem() {
     const trimmed = newItem.trim();
-    if (!trimmed || customItems.includes(trimmed)) return;
+    if (!trimmed) return;
+    const lower = trimmed.toLowerCase();
+    if (customItems.some((i) => i.toLowerCase() === lower)) {
+      toast(`"${trimmed}" is already in your extra items`, "error");
+      return;
+    }
+    if (ingredients.some((i) => i.name.toLowerCase() === lower)) {
+      toast(`"${trimmed}" is already in your shopping list`, "error");
+      return;
+    }
     setCustomItems((prev) => [...prev, trimmed]);
     setNewItem("");
   }
@@ -201,7 +229,7 @@ function ShoppingListPage() {
             </p>
           </div>
         </div>
-      ) : ingredients.length === 0 && customItems.length === 0 ? (
+      ) : totalItems === 0 ? (
         <div className="text-center py-16">
           <ShoppingCart className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
           <p className="font-hand text-base text-muted-foreground">No items to buy</p>
@@ -239,16 +267,7 @@ function ShoppingListPage() {
                           : "hover:bg-secondary"
                       )}
                     >
-                      <div
-                        className={cn(
-                          "hand-check flex items-center justify-center shrink-0",
-                          isChecked && "checked"
-                        )}
-                      >
-                        {isChecked && (
-                          <Check className="h-3 w-3 text-primary-foreground" />
-                        )}
-                      </div>
+                      <CheckboxIcon checked={isChecked} />
                       <div className="flex-1 min-w-0">
                         <span
                           className={cn(
@@ -303,16 +322,7 @@ function ShoppingListPage() {
                       onClick={() => toggleCheck(key)}
                       className="flex items-center gap-3 flex-1 min-w-0 text-left"
                     >
-                      <div
-                        className={cn(
-                          "hand-check flex items-center justify-center shrink-0",
-                          isChecked && "checked"
-                        )}
-                      >
-                        {isChecked && (
-                          <Check className="h-3 w-3 text-primary-foreground" />
-                        )}
-                      </div>
+                      <CheckboxIcon checked={isChecked} />
                       <span
                         className={cn(
                           "text-sm",
