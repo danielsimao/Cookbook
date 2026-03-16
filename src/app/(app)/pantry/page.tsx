@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Plus, X, Package, Search } from "lucide-react";
 import { toast } from "@/components/toaster";
 
@@ -14,23 +14,39 @@ export default function PantryPage() {
   const [loading, setLoading] = useState(true);
   const [newItem, setNewItem] = useState("");
   const [search, setSearch] = useState("");
+  const [ingredientSuggestions, setIngredientSuggestions] = useState<string[]>(
+    []
+  );
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const blurTimeoutRef = useRef<ReturnType<typeof setTimeout>>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch("/api/pantry")
+    const loadPantry = fetch("/api/pantry")
       .then((r) => r.json())
-      .then(setItems)
+      .then(setItems);
+
+    const loadSuggestions = fetch("/api/suggestions")
+      .then((r) => r.json())
+      .then((data) => setIngredientSuggestions(data.ingredients ?? []))
+      .catch(() => {});
+
+    Promise.all([loadPantry, loadSuggestions])
       .catch(() => toast("Failed to load pantry", "error"))
       .finally(() => setLoading(false));
   }, []);
 
-  async function addItem() {
-    const name = newItem.trim();
-    if (!name) return;
+  async function addItem(name?: string) {
+    const itemName = (name ?? newItem).trim();
+    if (!itemName) return;
+    setShowSuggestions(false);
+    setSelectedIndex(-1);
     try {
       const res = await fetch("/api/pantry", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name: itemName }),
       });
       const item = await res.json();
       setItems((prev) => {
@@ -42,6 +58,18 @@ export default function PantryPage() {
       toast("Failed to add item", "error");
     }
   }
+
+  const pantryNames = new Set(items.map((i) => i.name.toLowerCase()));
+  const filteredSuggestions =
+    newItem.trim().length > 0
+      ? ingredientSuggestions
+          .filter(
+            (s) =>
+              s.toLowerCase().includes(newItem.toLowerCase()) &&
+              !pantryNames.has(s.toLowerCase())
+          )
+          .slice(0, 5)
+      : [];
 
   async function removeItem(name: string) {
     try {
@@ -68,22 +96,102 @@ export default function PantryPage() {
       </div>
 
       {/* Add item */}
-      <div className="flex gap-2">
-        <input
-          type="text"
-          value={newItem}
-          onChange={(e) => setNewItem(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && addItem()}
-          placeholder="Add ingredient to pantry..."
-          className="input-cookbook flex-1 px-4 py-2.5 text-sm"
-        />
-        <button
-          onClick={addItem}
-          disabled={!newItem.trim()}
-          className="btn-cookbook px-4 py-2.5 disabled:opacity-50"
-        >
-          <Plus className="h-4 w-4" />
-        </button>
+      <div className="relative">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={newItem}
+            onChange={(e) => {
+              setNewItem(e.target.value);
+              setShowSuggestions(true);
+              setSelectedIndex(-1);
+            }}
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={() => {
+              blurTimeoutRef.current = setTimeout(
+                () => setShowSuggestions(false),
+                150
+              );
+            }}
+            onKeyDown={(e) => {
+              if (
+                e.key === "ArrowDown" &&
+                showSuggestions &&
+                filteredSuggestions.length > 0
+              ) {
+                e.preventDefault();
+                setSelectedIndex((i) =>
+                  i < filteredSuggestions.length - 1 ? i + 1 : 0
+                );
+              } else if (e.key === "ArrowUp" && showSuggestions) {
+                e.preventDefault();
+                setSelectedIndex((i) =>
+                  i > 0 ? i - 1 : filteredSuggestions.length - 1
+                );
+              } else if (e.key === "Enter") {
+                if (selectedIndex >= 0 && filteredSuggestions[selectedIndex]) {
+                  addItem(filteredSuggestions[selectedIndex]);
+                } else {
+                  addItem();
+                }
+              } else if (e.key === "Escape") {
+                setShowSuggestions(false);
+              }
+            }}
+            placeholder="Add ingredient to pantry..."
+            className="input-cookbook flex-1 px-4 py-2.5 text-sm"
+            role="combobox"
+            aria-expanded={
+              showSuggestions && filteredSuggestions.length > 0
+            }
+            aria-controls="ingredient-suggestions"
+            aria-activedescendant={
+              selectedIndex >= 0
+                ? `suggestion-${selectedIndex}`
+                : undefined
+            }
+            autoComplete="off"
+          />
+          <button
+            onClick={() => addItem()}
+            disabled={!newItem.trim()}
+            className="btn-cookbook px-4 py-2.5 disabled:opacity-50"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Suggestions dropdown */}
+        {showSuggestions && filteredSuggestions.length > 0 && (
+          <div
+            ref={suggestionsRef}
+            id="ingredient-suggestions"
+            role="listbox"
+            className="absolute left-0 right-12 z-10 mt-1 overflow-hidden rounded-sm border border-border bg-card shadow-[2px_3px_8px_rgba(59,35,20,0.08),0_1px_2px_rgba(59,35,20,0.05)]"
+          >
+            {filteredSuggestions.map((suggestion, i) => (
+              <button
+                key={suggestion}
+                id={`suggestion-${i}`}
+                role="option"
+                aria-selected={i === selectedIndex}
+                className={`w-full text-left px-4 py-2 font-hand text-sm transition-colors cursor-pointer ${
+                  i === selectedIndex
+                    ? "bg-secondary"
+                    : "hover:bg-secondary"
+                }`}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  if (blurTimeoutRef.current)
+                    clearTimeout(blurTimeoutRef.current);
+                  addItem(suggestion);
+                }}
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Search */}
