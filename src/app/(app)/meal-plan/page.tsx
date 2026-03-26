@@ -25,6 +25,7 @@ import {
 } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/toaster";
+import { ResponsiveModal } from "@/components/responsive-modal";
 
 interface MealPlanItem {
   id: string;
@@ -421,89 +422,53 @@ export default function MealPlanPage() {
       )}
 
       {/* Remove Confirmation */}
-      {showRemoveConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="paper-card p-6 max-w-sm w-full space-y-4">
-            <h3 className="font-display font-bold">Remove this meal?</h3>
-            <p className="text-sm text-muted-foreground">
-              This will remove the meal from your plan.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowRemoveConfirm(null)}
-                className="flex-1 py-2 border hover:bg-secondary font-hand text-base rounded"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmRemoveItem}
-                className="flex-1 py-2 bg-destructive text-destructive-foreground font-hand text-base font-bold rounded"
-              >
-                Remove
-              </button>
-            </div>
-          </div>
+      <ResponsiveModal open={!!showRemoveConfirm} onClose={() => setShowRemoveConfirm(null)}>
+        <h3 className="font-display font-bold">Remove this meal?</h3>
+        <p className="text-sm text-muted-foreground">
+          This will remove the meal from your plan.
+        </p>
+        <div className="flex gap-3">
+          <button onClick={() => setShowRemoveConfirm(null)} className="flex-1 py-2 border hover:bg-secondary font-hand text-base rounded">Cancel</button>
+          <button onClick={confirmRemoveItem} className="flex-1 py-2 bg-destructive text-destructive-foreground font-hand text-base font-bold rounded">Remove</button>
         </div>
-      )}
+      </ResponsiveModal>
 
       {/* Fill Week Preview */}
-      {showFillPreview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="paper-card p-6 max-w-sm w-full space-y-4">
-            <h3 className="font-display font-bold">Fill week with random recipes?</h3>
-            <p className="text-sm text-muted-foreground">
-              This will fill empty meal slots with randomly chosen recipes from your cookbook. Confirm to proceed.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowFillPreview(false)}
-                className="flex-1 py-2 border hover:bg-secondary font-hand text-base rounded"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmRandomFill}
-                className="flex-1 py-2 btn-cookbook"
-              >
-                Confirm
-              </button>
-            </div>
-          </div>
+      <ResponsiveModal open={showFillPreview} onClose={() => setShowFillPreview(false)}>
+        <h3 className="font-display font-bold">Fill week with random recipes?</h3>
+        <p className="text-sm text-muted-foreground">
+          This will fill empty meal slots with randomly chosen recipes from your cookbook. Confirm to proceed.
+        </p>
+        <div className="flex gap-3">
+          <button onClick={() => setShowFillPreview(false)} className="flex-1 py-2 border hover:bg-secondary font-hand text-base rounded">Cancel</button>
+          <button onClick={confirmRandomFill} className="flex-1 py-2 btn-cookbook">Confirm</button>
         </div>
-      )}
+      </ResponsiveModal>
 
       {/* Add Recipe Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/50">
-          <div className="paper-card rounded-t-xl md:rounded w-full max-w-md max-h-[70vh] flex flex-col">
-            <div className="p-4 border-b flex items-center justify-between">
+      <ResponsiveModal open={!!showAddModal} onClose={() => setShowAddModal(null)} tall>
+        {showAddModal && (
+          <>
+            <div className="flex items-center justify-between mb-3">
               <div>
                 <h3 className="font-display font-bold">Add Recipe</h3>
                 <p className="font-hand text-sm text-muted-foreground">
                   {format(showAddModal.date, "EEEE, MMM d")} · {showAddModal.mealType}
                 </p>
               </div>
-              <button
-                onClick={() => setShowAddModal(null)}
-                className="p-2 hover:bg-secondary rounded"
-              >
-                <X className="h-4 w-4" />
-              </button>
             </div>
-            <div className="p-3 border-b">
-              <div className="relative">
-                <Search className="absolute left-1 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <input
-                  type="text"
-                  value={recipeSearch}
-                  onChange={(e) => setRecipeSearch(e.target.value)}
-                  placeholder="Search recipes..."
-                  autoFocus
-                  className="input-cookbook w-full pl-7 py-2 text-sm"
-                />
-              </div>
+            <div className="relative mb-3">
+              <Search className="absolute left-1 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                value={recipeSearch}
+                onChange={(e) => setRecipeSearch(e.target.value)}
+                placeholder="Search recipes..."
+                autoFocus
+                className="input-cookbook w-full pl-7 py-2 text-sm"
+              />
             </div>
-            <div className="flex-1 overflow-y-auto p-3 space-y-1">
+            <div className="space-y-1">
               {recipesLoading ? (
                 <div className="space-y-2 py-4">
                   {[1, 2, 3].map((i) => (
@@ -518,62 +483,35 @@ export default function MealPlanPage() {
                     className="flex items-center gap-3 w-full p-2.5 hover:bg-secondary transition-colors text-left rounded"
                   >
                     {recipe.imageUrl ? (
-                      <img
-                        src={recipe.imageUrl}
-                        alt=""
-                        className="h-10 w-10 rounded object-cover shrink-0"
-                      />
+                      <img src={recipe.imageUrl} alt="" className="h-10 w-10 rounded object-cover shrink-0" />
                     ) : (
-                      <div className="h-10 w-10 rounded bg-muted flex items-center justify-center shrink-0">
-                        🍽️
-                      </div>
+                      <div className="h-10 w-10 rounded bg-muted flex items-center justify-center shrink-0">🍽️</div>
                     )}
                     <div className="min-w-0">
                       <p className="text-sm font-display font-bold truncate">{recipe.title}</p>
-                      {recipe.mealType && (
-                        <p className="font-hand text-sm text-muted-foreground capitalize">
-                          {recipe.mealType}
-                        </p>
-                      )}
+                      {recipe.mealType && <p className="font-hand text-sm text-muted-foreground capitalize">{recipe.mealType}</p>}
                     </div>
                   </button>
                 ))
               ) : (
-                <p className="text-center py-8 text-sm text-muted-foreground font-hand">
-                  No recipes found
-                </p>
+                <p className="text-center py-8 text-sm text-muted-foreground font-hand">No recipes found</p>
               )}
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </ResponsiveModal>
 
       {/* Clear Confirmation */}
-      {showClearConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="paper-card p-6 max-w-sm w-full space-y-4">
-            <h3 className="font-display font-bold">Clear this week?</h3>
-            <p className="text-sm text-muted-foreground">
-              This will remove all meals from{" "}
-              {format(weekStart, "MMM d")} – {format(weekEnd, "MMM d")}.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowClearConfirm(false)}
-                className="flex-1 py-2 border hover:bg-secondary font-hand text-base rounded"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={clearWeek}
-                className="flex-1 py-2 bg-destructive text-destructive-foreground font-hand text-base font-bold rounded"
-              >
-                Clear Week
-              </button>
-            </div>
-          </div>
+      <ResponsiveModal open={showClearConfirm} onClose={() => setShowClearConfirm(false)}>
+        <h3 className="font-display font-bold">Clear this week?</h3>
+        <p className="text-sm text-muted-foreground">
+          This will remove all meals from {format(weekStart, "MMM d")} – {format(weekEnd, "MMM d")}.
+        </p>
+        <div className="flex gap-3">
+          <button onClick={() => setShowClearConfirm(false)} className="flex-1 py-2 border hover:bg-secondary font-hand text-base rounded">Cancel</button>
+          <button onClick={clearWeek} className="flex-1 py-2 bg-destructive text-destructive-foreground font-hand text-base font-bold rounded">Clear Week</button>
         </div>
-      )}
+      </ResponsiveModal>
     </div>
   );
 }

@@ -15,6 +15,7 @@ import {
   Plus,
 } from "lucide-react";
 import { toast } from "@/components/toaster";
+import { ResponsiveModal } from "@/components/responsive-modal";
 import { TapedPhoto } from "@/components/scrapbook/taped-photo";
 import { SectionHeader } from "@/components/scrapbook/section-header";
 import { StampBadge } from "@/components/scrapbook/stamp-badge";
@@ -325,30 +326,16 @@ export default function RecipeDetailPage() {
       )}
 
       {/* Delete Confirmation */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="paper-card p-6 max-w-sm w-full space-y-4">
-            <h3 className="font-display font-bold">Delete recipe?</h3>
-            <p className="text-sm text-muted-foreground">
-              This will permanently delete &quot;{recipe.title}&quot; and remove it from any meal plans.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 py-2 border hover:bg-secondary text-sm font-hand text-lg rounded"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDelete}
-                className="flex-1 py-2 bg-destructive text-destructive-foreground text-sm font-medium rounded"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
+      <ResponsiveModal open={showDeleteConfirm} onClose={() => setShowDeleteConfirm(false)}>
+        <h3 className="font-display font-bold">Delete recipe?</h3>
+        <p className="text-sm text-muted-foreground">
+          This will permanently delete &quot;{recipe.title}&quot; and remove it from any meal plans.
+        </p>
+        <div className="flex gap-3">
+          <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 py-2 border hover:bg-secondary font-hand text-base rounded">Cancel</button>
+          <button onClick={handleDelete} className="flex-1 py-2 bg-destructive text-destructive-foreground text-sm font-medium rounded">Delete</button>
         </div>
-      )}
+      </ResponsiveModal>
     </div>
   );
 }

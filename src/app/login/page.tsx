@@ -61,14 +61,14 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="paper-card p-6 space-y-4">
           <div className="relative">
-            <Lock className="absolute left-1 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Lock className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Password"
               autoFocus
-              className="input-cookbook pl-7"
+              className="input-cookbook pl-8"
             />
           </div>
 

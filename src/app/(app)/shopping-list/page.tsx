@@ -24,6 +24,7 @@ import {
 } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/toaster";
+import { ResponsiveModal } from "@/components/responsive-modal";
 
 interface MergedIngredient {
   name: string;
@@ -508,30 +509,16 @@ function ShoppingListPage() {
       )}
 
       {/* Uncheck all confirmation */}
-      {showUncheckConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="paper-card p-6 max-w-sm w-full space-y-4">
-            <h3 className="font-display font-bold">Uncheck all items?</h3>
-            <p className="text-sm text-muted-foreground">
-              Are you sure you want to uncheck {checkedCount} items?
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowUncheckConfirm(false)}
-                className="flex-1 py-2 border hover:bg-secondary font-hand text-base rounded"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmUncheckAll}
-                className="flex-1 py-2 bg-destructive text-destructive-foreground font-hand text-base font-bold rounded"
-              >
-                Uncheck all
-              </button>
-            </div>
-          </div>
+      <ResponsiveModal open={showUncheckConfirm} onClose={() => setShowUncheckConfirm(false)}>
+        <h3 className="font-display font-bold">Uncheck all items?</h3>
+        <p className="text-sm text-muted-foreground">
+          Are you sure you want to uncheck {checkedCount} items?
+        </p>
+        <div className="flex gap-3">
+          <button onClick={() => setShowUncheckConfirm(false)} className="flex-1 py-2 border hover:bg-secondary font-hand text-base rounded">Cancel</button>
+          <button onClick={confirmUncheckAll} className="flex-1 py-2 bg-destructive text-destructive-foreground font-hand text-base font-bold rounded">Uncheck all</button>
         </div>
-      )}
+      </ResponsiveModal>
     </div>
   );
 }

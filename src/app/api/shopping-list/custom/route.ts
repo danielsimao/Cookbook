@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { startOfWeek, subWeeks } from "date-fns";
-import prisma from "@/lib/db";
+import { prisma } from "@/lib/db";
 
 // GET — fetch custom items for a week
 export async function GET(req: NextRequest) {

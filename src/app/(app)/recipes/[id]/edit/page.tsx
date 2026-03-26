@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Plus, Trash2, Loader2 } from "lucide-react";
 import { toast } from "@/components/toaster";
+import { ResponsiveModal } from "@/components/responsive-modal";
 import { SortableStepList } from "@/components/sortable-step-list";
 import { ImageField } from "@/components/image-field";
 import { ComboboxField, MultiComboboxField } from "@/components/combobox-field";
@@ -360,33 +361,16 @@ export default function EditRecipePage() {
       </div>
 
       {/* Discard changes confirmation */}
-      {showDiscardConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="paper-card p-6 max-w-sm w-full space-y-4">
-            <h3 className="font-display font-bold">Discard unsaved changes?</h3>
-            <p className="text-sm text-muted-foreground">
-              You have unsaved changes that will be lost.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowDiscardConfirm(false)}
-                className="flex-1 py-2 border hover:bg-secondary font-hand text-base rounded"
-              >
-                Keep editing
-              </button>
-              <button
-                onClick={() => {
-                  setShowDiscardConfirm(false);
-                  if (pendingNavigation) router.push(pendingNavigation);
-                }}
-                className="flex-1 py-2 bg-destructive text-destructive-foreground font-hand text-base font-bold rounded"
-              >
-                Discard
-              </button>
-            </div>
-          </div>
+      <ResponsiveModal open={showDiscardConfirm} onClose={() => setShowDiscardConfirm(false)}>
+        <h3 className="font-display font-bold">Discard unsaved changes?</h3>
+        <p className="text-sm text-muted-foreground">
+          You have unsaved changes that will be lost.
+        </p>
+        <div className="flex gap-3">
+          <button onClick={() => setShowDiscardConfirm(false)} className="flex-1 py-2 border hover:bg-secondary font-hand text-base rounded">Keep editing</button>
+          <button onClick={() => { setShowDiscardConfirm(false); if (pendingNavigation) router.push(pendingNavigation); }} className="flex-1 py-2 bg-destructive text-destructive-foreground font-hand text-base font-bold rounded">Discard</button>
         </div>
-      )}
+      </ResponsiveModal>
     </div>
   );
 }
