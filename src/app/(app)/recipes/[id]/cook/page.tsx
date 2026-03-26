@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, X, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -14,30 +14,99 @@ interface Recipe {
   steps: { id: string; text: string; sortOrder: number }[];
 }
 
+const COOK_STEP_KEY_PREFIX = "cookbook-cook-step-";
+const COOK_CHECKED_KEY_PREFIX = "cookbook-cook-checked-";
+
 export default function CookingModePage() {
   const { id } = useParams();
   const router = useRouter();
   const [recipe, setRecipe] = useState<Recipe | null>(null);
-  const [currentStep, setCurrentStep] = useState(-1);
-  const [checkedIngredients, setCheckedIngredients] = useState<Set<string>>(new Set());
+  const [currentStep, setCurrentStep] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem(`${COOK_STEP_KEY_PREFIX}${id}`);
+      return saved ? parseInt(saved, 10) : -1;
+    } catch {
+      return -1;
+    }
+  });
+  const [checkedIngredients, setCheckedIngredients] = useState<Set<string>>(() => {
+    try {
+      const saved = sessionStorage.getItem(`${COOK_CHECKED_KEY_PREFIX}${id}`);
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+  const [wakeLockFailed, setWakeLockFailed] = useState(false);
+  const isDoneRef = useRef(false);
 
   useEffect(() => {
     fetch(`/api/recipes/${id}`)
-      .then((r) => r.json())
-      .then(setRecipe);
-  }, [id]);
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then(setRecipe)
+      .catch(() => {
+        router.push(`/recipes/${id}`);
+      });
+  }, [id, router]);
 
   useEffect(() => {
     let wakeLock: WakeLockSentinel | null = null;
     if ("wakeLock" in navigator) {
       navigator.wakeLock.request("screen").then((wl) => {
         wakeLock = wl;
-      }).catch(() => {});
+      }).catch(() => {
+        setWakeLockFailed(true);
+      });
     }
     return () => {
       wakeLock?.release();
     };
   }, []);
+
+  // Persist step and checked state to sessionStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem(`${COOK_STEP_KEY_PREFIX}${id}`, String(currentStep));
+    }
+  }, [currentStep, id]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem(
+        `${COOK_CHECKED_KEY_PREFIX}${id}`,
+        JSON.stringify(Array.from(checkedIngredients))
+      );
+    }
+  }, [checkedIngredients, id]);
+
+  // Mark recipe as cooked when reaching done screen
+  const cookedRef = useRef(false);
+  useEffect(() => {
+    if (isDoneRef.current && !cookedRef.current) {
+      cookedRef.current = true;
+      fetch(`/api/recipes/${id}/cook`, { method: "POST" }).catch(() => {});
+    }
+  });
+
+  // Arrow key navigation
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (!recipe) return;
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+    const totalSteps = recipe.steps.length;
+    if (e.key === "ArrowRight") {
+      setCurrentStep((prev) => Math.min(totalSteps, prev + 1));
+    } else if (e.key === "ArrowLeft") {
+      setCurrentStep((prev) => Math.max(-1, prev - 1));
+    }
+  }, [recipe]);
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown]);
 
   if (!recipe) {
     return (
@@ -51,13 +120,21 @@ export default function CookingModePage() {
   const totalSteps = sortedSteps.length;
   const isIngredients = currentStep === -1;
   const isDone = currentStep >= totalSteps;
+  isDoneRef.current = isDone;
 
-  function toggleIngredient(id: string) {
+  function toggleIngredient(ingId: string) {
     const next = new Set(checkedIngredients);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
+    if (next.has(ingId)) next.delete(ingId);
+    else next.add(ingId);
     setCheckedIngredients(next);
   }
+
+  function goToStep(step: number) {
+    setCurrentStep(step);
+  }
+
+  const checkedCount = checkedIngredients.size;
+  const totalIngredients = recipe.ingredients.length;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -77,25 +154,45 @@ export default function CookingModePage() {
         </span>
       </div>
 
-      {/* Torn edge + progress */}
+      {/* Torn edge + progress with clickable step indicators */}
       <div className="torn-edge h-px bg-border" />
-      <div className="h-1 bg-muted mt-2">
-        <div
-          className="h-full bg-primary transition-all duration-300"
-          style={{
-            width: `${isDone ? 100 : ((currentStep + 1) / (totalSteps + 1)) * 100}%`,
-            backgroundImage: "repeating-linear-gradient(90deg, transparent, transparent 6px, rgba(255,255,255,0.3) 6px, rgba(255,255,255,0.3) 10px)",
-          }}
-        />
+      <div className="flex items-center gap-1 px-4 mt-2">
+        {/* Step indicators */}
+        {Array.from({ length: totalSteps + 1 }, (_, i) => {
+          const stepIdx = i - 1; // -1 = ingredients, 0..n-1 = steps
+          const isActive = stepIdx === currentStep;
+          const isCompleted = stepIdx < currentStep;
+          return (
+            <button
+              key={i}
+              onClick={() => goToStep(stepIdx)}
+              className={cn(
+                "flex-1 h-1.5 rounded-full transition-all cursor-pointer",
+                isActive ? "bg-primary" : isCompleted ? "bg-primary/60" : "bg-muted"
+              )}
+              aria-label={stepIdx === -1 ? "Ingredients" : `Step ${stepIdx + 1}`}
+            />
+          );
+        })}
       </div>
+
+      {/* Wake lock warning */}
+      {wakeLockFailed && (
+        <p className="text-xs text-muted-foreground text-center px-4 mt-2">
+          Screen may turn off — keep your screen on manually
+        </p>
+      )}
 
       {/* Content */}
       <div className="flex-1 flex items-center justify-center p-4 md:p-6">
         {isIngredients ? (
           <div className="w-full max-w-lg space-y-4 watercolor-wash p-4 rounded">
-            <h2 className="font-display text-xl md:text-2xl font-bold text-center mb-6">
+            <h2 className="font-display text-xl md:text-2xl font-bold text-center mb-2">
               Gather your ingredients
             </h2>
+            <p className="text-sm text-muted-foreground text-center">
+              {checkedCount} of {totalIngredients} ingredients ready
+            </p>
             <ul className="space-y-3">
               {recipe.ingredients.map((ing) => (
                 <li

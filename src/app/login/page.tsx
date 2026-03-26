@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Lock } from "lucide-react";
 
@@ -9,6 +9,17 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+
+  // L1: Redirect if already authenticated
+  useEffect(() => {
+    fetch("/api/auth/login", { method: "HEAD" })
+      .then((res) => {
+        if (res.ok) {
+          router.push("/");
+        }
+      })
+      .catch((err) => console.error("Auth check failed:", err));
+  }, [router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -28,8 +39,13 @@ export default function LoginPage() {
       } else {
         setError("Wrong password");
       }
-    } catch {
-      setError("Something went wrong");
+    } catch (err) {
+      // L4: Descriptive network error
+      const message =
+        err instanceof TypeError && err.message.includes("fetch")
+          ? "Unable to connect to the server. Check your internet connection."
+          : "Login failed. Please try again.";
+      setError(message);
     } finally {
       setLoading(false);
     }

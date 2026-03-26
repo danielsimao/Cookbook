@@ -57,6 +57,9 @@ function NewRecipePage() {
   ]);
   const [steps, setSteps] = useState<string[]>([""]);
   const [saving, setSaving] = useState(false);
+  const [titleError, setTitleError] = useState("");
+  const [servingsError, setServingsError] = useState("");
+  const [showGroupFor, setShowGroupFor] = useState<Set<number>>(new Set());
   const [cuisineOptions, setCuisineOptions] = useState<string[]>([]);
   const [tagOptions, setTagOptions] = useState<string[]>([]);
 
@@ -91,12 +94,16 @@ function NewRecipePage() {
         }
         return;
       }
-      if (!res.ok) throw new Error("Import failed");
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Could not parse recipe from this URL");
+      }
       const recipe = await res.json();
       toast("Recipe imported successfully!", "success");
       router.push(`/recipes/${recipe.id}`);
-    } catch {
-      toast("Failed to import recipe. Try a different URL.", "error");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to import recipe. Try a different URL.";
+      toast(msg, "error");
     } finally {
       setImporting(false);
     }
@@ -126,9 +133,11 @@ function NewRecipePage() {
 
   async function handleSave() {
     if (!title.trim()) {
+      setTitleError("Title is required");
       toast("Recipe title is required", "error");
       return;
     }
+    setTitleError("");
     setSaving(true);
     try {
       const res = await fetch("/api/recipes", {
@@ -170,9 +179,15 @@ function NewRecipePage() {
 
   function addIngredient() {
     setIngredients([...ingredients, emptyIngredient()]);
+    // Focus the new ingredient's name field after render
+    setTimeout(() => {
+      const nameInputs = document.querySelectorAll<HTMLInputElement>('input[placeholder="Ingredient name"]');
+      nameInputs[nameInputs.length - 1]?.focus();
+    }, 0);
   }
 
   function removeIngredient(index: number) {
+    if (ingredients.length <= 1) return; // Keep at least one row
     setIngredients(ingredients.filter((_, i) => i !== index));
   }
 
@@ -259,7 +274,8 @@ function NewRecipePage() {
           {duplicate && (
             <div className="sticky-note space-y-2">
               <p className="font-hand text-base">
-                You already imported this URL as <Link href={`/recipes/${duplicate.id}`} className="text-primary font-bold hover:underline">&ldquo;{duplicate.title}&rdquo;</Link>
+                You already imported this URL as <Link href={`/recipes/${duplicate.id}`} className="text-primary font-bold hover:underline">&ldquo;{duplicate.title}&rdquo;</Link>.
+                Importing again will create a second copy of this recipe.
               </p>
               <div className="flex gap-2">
                 <Link href={`/recipes/${duplicate.id}`} className="btn-cookbook !bg-secondary !text-secondary-foreground !text-sm">
@@ -323,10 +339,13 @@ function NewRecipePage() {
               <input
                 type="text"
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={(e) => { setTitle(e.target.value); if (e.target.value.trim()) setTitleError(""); }}
                 placeholder="Recipe name"
                 className="input-cookbook w-full mt-1"
               />
+              {titleError && (
+                <p className="text-sm text-destructive mt-1">{titleError}</p>
+              )}
             </div>
 
             <div>
@@ -352,9 +371,17 @@ function NewRecipePage() {
                 <input
                   type="number"
                   value={servings}
-                  onChange={(e) => setServings(e.target.value)}
+                  onChange={(e) => {
+                    setServings(e.target.value);
+                    const n = parseInt(e.target.value);
+                    setServingsError(!e.target.value || isNaN(n) || n < 1 ? "Must be a positive number" : "");
+                  }}
+                  min="1"
                   className="input-cookbook w-full mt-1"
                 />
+                {servingsError && (
+                  <p className="text-sm text-destructive mt-1">{servingsError}</p>
+                )}
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">
@@ -437,57 +464,107 @@ function NewRecipePage() {
             </div>
 
             {ingredients.map((ing, i) => (
-              <div key={i} className="space-y-1">
-                <div className="flex items-center gap-2 py-1 border-b border-border/40">
-                  <input
-                    type="text"
-                    value={ing.quantity}
-                    onChange={(e) => updateIngredient(i, "quantity", e.target.value)}
-                    placeholder="Qty"
-                    disabled={ing.toTaste}
-                    className="input-cookbook w-14 !border-b-0 text-center disabled:opacity-40"
-                  />
-                  <select
-                    value={ing.unit}
-                    onChange={(e) => updateIngredient(i, "unit", e.target.value)}
-                    className="input-cookbook w-20 !border-b-0 text-center text-sm text-muted-foreground"
-                  >
-                    <option value="">Unit</option>
-                    {UNIT_GROUPS.map((group) => (
-                      <optgroup key={group.label} label={group.label}>
-                        {group.units.map((u) => (
-                          <option key={u} value={u}>{u}</option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
+              <div key={i} className="bg-background border border-border/50 border-l-[3px] border-l-primary rounded-sm p-3 pb-2 mb-2 space-y-2">
+                {/* Row 1: Number + Name + Delete */}
+                <div className="flex items-center gap-2.5">
+                  <span className="font-hand text-base font-bold text-primary w-5 shrink-0 text-center">{i + 1}.</span>
                   <input
                     type="text"
                     value={ing.name}
                     onChange={(e) => updateIngredient(i, "name", e.target.value)}
                     placeholder="Ingredient name"
-                    className="input-cookbook flex-1 !border-b-0"
+                    className="input-cookbook flex-1 font-medium"
                   />
                   <button
                     onClick={() => removeIngredient(i)}
-                    className="p-2 text-muted-foreground hover:text-destructive transition-colors opacity-40 hover:opacity-100"
+                    className="p-1.5 shrink-0 text-muted-foreground hover:text-destructive transition-colors opacity-40 hover:opacity-100"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
-                <label className="flex items-center gap-1.5 ml-1">
-                  <input
-                    type="checkbox"
-                    checked={ing.toTaste}
-                    onChange={(e) => {
+                {/* Row 2: Amount zone (qty+unit OR "to taste" stamp) */}
+                <div className="flex items-center gap-3 pl-[30px] min-h-[36px]">
+                  {!ing.toTaste && (
+                    <>
+                      <input
+                        type="text"
+                        value={ing.quantity}
+                        onChange={(e) => updateIngredient(i, "quantity", e.target.value)}
+                        placeholder="Qty"
+                        className="input-cookbook shrink-0 text-center text-sm py-1.5"
+                        style={{ width: 52 }}
+                      />
+                      <select
+                        value={ing.unit}
+                        onChange={(e) => updateIngredient(i, "unit", e.target.value)}
+                        className="input-cookbook shrink-0 text-sm text-muted-foreground py-1.5"
+                        style={{ width: 76 }}
+                      >
+                        <option value="">Unit</option>
+                        {UNIT_GROUPS.map((group) => (
+                          <optgroup key={group.label} label={group.label}>
+                            {group.units.map((u) => (
+                              <option key={u} value={u}>{u}</option>
+                            ))}
+                          </optgroup>
+                        ))}
+                      </select>
+                    </>
+                  )}
+                  <span className="flex-1" />
+                  <button
+                    type="button"
+                    onClick={() => {
                       const updated = [...ingredients];
-                      updated[i] = { ...updated[i], toTaste: e.target.checked, quantity: e.target.checked ? "" : updated[i].quantity };
+                      updated[i] = { ...updated[i], toTaste: !ing.toTaste, quantity: !ing.toTaste ? "" : updated[i].quantity };
                       setIngredients(updated);
                     }}
-                    className="accent-primary"
-                  />
-                  <span className="text-xs font-hand text-muted-foreground">To taste</span>
-                </label>
+                    className={
+                      ing.toTaste
+                        ? "stamp-badge !text-[0.72rem] !py-0.5 !px-2.5 cursor-pointer hover:opacity-60 transition-opacity"
+                        : "font-hand text-xs text-muted-foreground/50 hover:text-[var(--stamp-red)] hover:border-[var(--stamp-red)] border border-border/60 rounded-[1px] px-2 py-0.5 hover:opacity-90 transition-all cursor-pointer uppercase tracking-wide"
+                    }
+                    style={ing.toTaste ? undefined : { transform: "rotate(-1deg)" }}
+                    title={ing.toTaste ? "Click to switch to quantity" : "Mark as 'to taste'"}
+                  >
+                    {ing.toTaste ? "To taste" : "to taste"}
+                  </button>
+                </div>
+                {/* Row 3: Group — washi-tape label or "+ group" link */}
+                {ing.group || showGroupFor.has(i) ? (
+                  <div className="flex items-center gap-2 pl-[30px] mt-1">
+                    {ing.group && !showGroupFor.has(i) ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowGroupFor((prev) => { const next = new Set(prev); next.add(i); return next; })}
+                        className="washi-tape washi-tape-blue !py-0.5 !px-2.5 !text-[0.7rem] cursor-pointer hover:opacity-80 transition-opacity"
+                        style={{ transform: "rotate(-1.5deg)" }}
+                      >
+                        {ing.group}
+                      </button>
+                    ) : (
+                      <input
+                        type="text"
+                        value={ing.group}
+                        onChange={(e) => updateIngredient(i, "group", e.target.value)}
+                        onBlur={() => { if (!ing.group) setShowGroupFor((prev) => { const next = new Set(prev); next.delete(i); return next; }); }}
+                        placeholder="Group (e.g., For the sauce)"
+                        autoFocus={showGroupFor.has(i) && !ing.group}
+                        className="input-cookbook text-xs !border-b-0 py-0.5 text-muted-foreground/70 placeholder:text-muted-foreground/30 flex-1"
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <div className="pl-[30px] mt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setShowGroupFor((prev) => { const next = new Set(prev); next.add(i); return next; })}
+                      className="font-hand text-[0.7rem] text-muted-foreground/40 hover:text-primary/60 transition-colors cursor-pointer"
+                    >
+                      + group
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

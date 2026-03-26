@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Plus, Trash2, Loader2 } from "lucide-react";
@@ -17,6 +17,9 @@ export default function EditRecipePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
+  const [showGroupFor, setShowGroupFor] = useState<Set<number>>(new Set());
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -33,6 +36,18 @@ export default function EditRecipePage() {
   const [steps, setSteps] = useState<string[]>([]);
   const [cuisineOptions, setCuisineOptions] = useState<string[]>([]);
   const [tagOptions, setTagOptions] = useState<string[]>([]);
+
+  // Track original values for dirty checking
+  const originalRef = useRef<string>("");
+  const [titleError, setTitleError] = useState("");
+
+  function getCurrentFormData() {
+    return JSON.stringify({ title, description, imageUrl, servings, prepTime, cookTime, cuisine, mealType, tags, notes, isFavorite, ingredients, steps });
+  }
+
+  function isDirty() {
+    return originalRef.current !== "" && originalRef.current !== getCurrentFormData();
+  }
 
   useEffect(() => {
     fetch(`/api/recipes/${id}`)
@@ -66,6 +81,34 @@ export default function EditRecipePage() {
             .map((s: { text: string }) => s.text)
         );
         setLoading(false);
+        // Defer setting original so state is settled
+        setTimeout(() => {
+          originalRef.current = JSON.stringify({
+            title: recipe.title,
+            description: recipe.description || "",
+            imageUrl: recipe.imageUrl || "",
+            servings: String(recipe.servings),
+            prepTime: recipe.prepTime ? String(recipe.prepTime) : "",
+            cookTime: recipe.cookTime ? String(recipe.cookTime) : "",
+            cuisine: recipe.cuisine || "",
+            mealType: recipe.mealType || "",
+            tags: recipe.tags,
+            notes: recipe.notes || "",
+            isFavorite: recipe.isFavorite,
+            ingredients: recipe.ingredients
+              .sort((a: { sortOrder: number }, b: { sortOrder: number }) => a.sortOrder - b.sortOrder)
+              .map((i: { name: string; quantity: number | null; unit: string | null; group: string | null; toTaste?: boolean }) => ({
+                name: i.name,
+                quantity: i.quantity != null ? String(i.quantity) : "",
+                unit: i.unit || "",
+                group: i.group || "",
+                toTaste: i.toTaste ?? false,
+              })),
+            steps: recipe.steps
+              .sort((a: { sortOrder: number }, b: { sortOrder: number }) => a.sortOrder - b.sortOrder)
+              .map((s: { text: string }) => s.text),
+          });
+        }, 0);
       })
       .catch(() => {
         toast("Failed to load recipe", "error");
@@ -86,11 +129,21 @@ export default function EditRecipePage() {
       .catch((err) => console.error("Failed to load suggestions:", err));
   }, []);
 
+  function handleCancelClick(e: React.MouseEvent) {
+    if (isDirty()) {
+      e.preventDefault();
+      setPendingNavigation(`/recipes/${id}`);
+      setShowDiscardConfirm(true);
+    }
+  }
+
   async function handleSave() {
     if (!title.trim()) {
+      setTitleError("Title is required");
       toast("Title is required", "error");
       return;
     }
+    setTitleError("");
     setSaving(true);
     try {
       const res = await fetch(`/api/recipes/${id}`, {
@@ -158,9 +211,12 @@ export default function EditRecipePage() {
           <input
             type="text"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => { setTitle(e.target.value); if (e.target.value.trim()) setTitleError(""); }}
             className="input-cookbook w-full mt-1"
           />
+          {titleError && (
+            <p className="text-sm text-destructive mt-1">{titleError}</p>
+          )}
         </div>
         <div>
           <label className="text-sm font-medium text-muted-foreground">Description</label>
@@ -230,28 +286,52 @@ export default function EditRecipePage() {
           </button>
         </div>
         {ingredients.map((ing, i) => (
-          <div key={i} className="space-y-1">
-            <div className="flex items-center gap-2 py-1 border-b border-border/40">
-              <input type="text" value={ing.quantity} onChange={(e) => { const u = [...ingredients]; u[i] = { ...u[i], quantity: e.target.value }; setIngredients(u); }} placeholder="Qty" disabled={ing.toTaste} className="input-cookbook w-14 !border-b-0 text-center disabled:opacity-40" />
-              <select value={ing.unit} onChange={(e) => { const u = [...ingredients]; u[i] = { ...u[i], unit: e.target.value }; setIngredients(u); }} className="input-cookbook w-20 !border-b-0 text-center text-sm text-muted-foreground">
-                <option value="">Unit</option>
-                {UNIT_GROUPS.map((group) => (
-                  <optgroup key={group.label} label={group.label}>
-                    {group.units.map((u) => (
-                      <option key={u} value={u}>{u}</option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
-              <input type="text" value={ing.name} onChange={(e) => { const u = [...ingredients]; u[i] = { ...u[i], name: e.target.value }; setIngredients(u); }} placeholder="Ingredient" className="input-cookbook flex-1 !border-b-0" />
-              <button onClick={() => setIngredients(ingredients.filter((_, j) => j !== i))} className="p-2 text-muted-foreground hover:text-destructive transition-colors opacity-40 hover:opacity-100">
-                <Trash2 className="h-4 w-4" />
+          <div key={i} className="bg-background border border-border/50 border-l-[3px] border-l-primary rounded-sm p-3 pb-2 mb-2 space-y-2">
+            <div className="flex items-center gap-2.5">
+              <span className="font-hand text-base font-bold text-primary w-5 shrink-0 text-center">{i + 1}.</span>
+              <input type="text" value={ing.name} onChange={(e) => { const u = [...ingredients]; u[i] = { ...u[i], name: e.target.value }; setIngredients(u); }} placeholder="Ingredient name" className="input-cookbook flex-1 font-medium" />
+              <button onClick={() => setIngredients(ingredients.filter((_, j) => j !== i))} className="p-1.5 shrink-0 text-muted-foreground hover:text-destructive transition-colors opacity-40 hover:opacity-100">
+                <Trash2 className="h-3.5 w-3.5" />
               </button>
             </div>
-            <label className="flex items-center gap-1.5 ml-1">
-              <input type="checkbox" checked={ing.toTaste} onChange={(e) => { const u = [...ingredients]; u[i] = { ...u[i], toTaste: e.target.checked, quantity: e.target.checked ? "" : u[i].quantity }; setIngredients(u); }} className="accent-primary" />
-              <span className="text-xs font-hand text-muted-foreground">To taste</span>
-            </label>
+            <div className="flex items-center gap-3 pl-[30px] min-h-[36px]">
+              {!ing.toTaste && (
+                <>
+                  <input type="text" value={ing.quantity} onChange={(e) => { const u = [...ingredients]; u[i] = { ...u[i], quantity: e.target.value }; setIngredients(u); }} placeholder="Qty" className="input-cookbook shrink-0 text-center text-sm py-1.5" style={{ width: 52 }} />
+                  <select value={ing.unit} onChange={(e) => { const u = [...ingredients]; u[i] = { ...u[i], unit: e.target.value }; setIngredients(u); }} className="input-cookbook shrink-0 text-sm text-muted-foreground py-1.5" style={{ width: 76 }}>
+                    <option value="">Unit</option>
+                    {UNIT_GROUPS.map((group) => (
+                      <optgroup key={group.label} label={group.label}>
+                        {group.units.map((u) => (
+                          <option key={u} value={u}>{u}</option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                </>
+              )}
+              <span className="flex-1" />
+              <button type="button" onClick={() => { const u = [...ingredients]; u[i] = { ...u[i], toTaste: !ing.toTaste, quantity: !ing.toTaste ? "" : u[i].quantity }; setIngredients(u); }} className={ing.toTaste ? "stamp-badge !text-[0.72rem] !py-0.5 !px-2.5 cursor-pointer hover:opacity-60 transition-opacity" : "font-hand text-xs text-muted-foreground/50 hover:text-[var(--stamp-red)] hover:border-[var(--stamp-red)] border border-border/60 rounded-[1px] px-2 py-0.5 hover:opacity-90 transition-all cursor-pointer uppercase tracking-wide"} style={ing.toTaste ? undefined : { transform: "rotate(-1deg)" }} title={ing.toTaste ? "Click to switch to quantity" : "Mark as 'to taste'"}>
+                {ing.toTaste ? "To taste" : "to taste"}
+              </button>
+            </div>
+            {ing.group || showGroupFor.has(i) ? (
+              <div className="flex items-center gap-2 pl-[30px] mt-1">
+                {ing.group && !showGroupFor.has(i) ? (
+                  <button type="button" onClick={() => setShowGroupFor((prev) => { const next = new Set(prev); next.add(i); return next; })} className="washi-tape washi-tape-blue !py-0.5 !px-2.5 !text-[0.7rem] cursor-pointer hover:opacity-80 transition-opacity" style={{ transform: "rotate(-1.5deg)" }}>
+                    {ing.group}
+                  </button>
+                ) : (
+                  <input type="text" value={ing.group} onChange={(e) => { const u = [...ingredients]; u[i] = { ...u[i], group: e.target.value }; setIngredients(u); }} onBlur={() => { if (!ing.group) setShowGroupFor((prev) => { const next = new Set(prev); next.delete(i); return next; }); }} placeholder="Group (e.g., For the sauce)" autoFocus={showGroupFor.has(i) && !ing.group} className="input-cookbook text-xs !border-b-0 py-0.5 text-muted-foreground/70 placeholder:text-muted-foreground/30 flex-1" />
+                )}
+              </div>
+            ) : (
+              <div className="pl-[30px] mt-0.5">
+                <button type="button" onClick={() => setShowGroupFor((prev) => { const next = new Set(prev); next.add(i); return next; })} className="font-hand text-[0.7rem] text-muted-foreground/40 hover:text-primary/60 transition-colors cursor-pointer">
+                  + group
+                </button>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -266,7 +346,11 @@ export default function EditRecipePage() {
       </div>
 
       <div className="flex gap-3">
-        <Link href={`/recipes/${id}`} className="flex-1 py-3 border-2 border-border text-center hover:bg-secondary font-hand text-lg rounded transition-colors">
+        <Link
+          href={`/recipes/${id}`}
+          onClick={handleCancelClick}
+          className="flex-1 py-3 border-2 border-border text-center hover:bg-secondary font-hand text-lg rounded transition-colors"
+        >
           Cancel
         </Link>
         <button onClick={handleSave} disabled={saving || !title.trim()} className="flex-1 btn-cookbook disabled:opacity-50 flex items-center justify-center gap-2">
@@ -274,6 +358,35 @@ export default function EditRecipePage() {
           {saving ? "Saving..." : "Save Changes"}
         </button>
       </div>
+
+      {/* Discard changes confirmation */}
+      {showDiscardConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="paper-card p-6 max-w-sm w-full space-y-4">
+            <h3 className="font-display font-bold">Discard unsaved changes?</h3>
+            <p className="text-sm text-muted-foreground">
+              You have unsaved changes that will be lost.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDiscardConfirm(false)}
+                className="flex-1 py-2 border hover:bg-secondary font-hand text-base rounded"
+              >
+                Keep editing
+              </button>
+              <button
+                onClick={() => {
+                  setShowDiscardConfirm(false);
+                  if (pendingNavigation) router.push(pendingNavigation);
+                }}
+                className="flex-1 py-2 bg-destructive text-destructive-foreground font-hand text-base font-bold rounded"
+              >
+                Discard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

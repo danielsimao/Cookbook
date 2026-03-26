@@ -37,37 +37,70 @@ interface Recipe {
   steps: { id: string; text: string; sortOrder: number }[];
 }
 
+const SCALE_KEY_PREFIX = "cookbook-scale-";
+
 export default function RecipeDetailPage() {
   const { id } = useParams();
   const router = useRouter();
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [loading, setLoading] = useState(true);
-  const [scale, setScale] = useState(1);
+  const [error, setError] = useState(false);
+  const [scale, setScale] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`${SCALE_KEY_PREFIX}${id}`);
+      return saved ? parseFloat(saved) : 1;
+    } catch {
+      return 1;
+    }
+  });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  useEffect(() => {
+  function persistScale(newScale: number) {
+    setScale(newScale);
+    try {
+      if (newScale === 1) {
+        localStorage.removeItem(`${SCALE_KEY_PREFIX}${id}`);
+      } else {
+        localStorage.setItem(`${SCALE_KEY_PREFIX}${id}`, String(newScale));
+      }
+    } catch {
+      // Storage unavailable
+    }
+  }
+
+  function loadRecipe() {
+    setLoading(true);
+    setError(false);
     fetch(`/api/recipes/${id}`)
       .then((r) => {
         if (!r.ok) throw new Error();
         return r.json();
       })
       .then(setRecipe)
-      .catch(() => toast("Recipe not found", "error"))
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    loadRecipe();
   }, [id]);
 
   async function toggleFavorite() {
     if (!recipe) return;
+    const prev = recipe.isFavorite;
+    setRecipe({ ...recipe, isFavorite: !prev });
     try {
       const res = await fetch(`/api/recipes/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isFavorite: !recipe.isFavorite }),
+        body: JSON.stringify({ isFavorite: !prev }),
       });
-      if (res.ok) {
-        setRecipe({ ...recipe, isFavorite: !recipe.isFavorite });
+      if (!res.ok) {
+        setRecipe({ ...recipe, isFavorite: prev });
+        toast("Failed to update", "error");
       }
     } catch {
+      setRecipe({ ...recipe, isFavorite: prev });
       toast("Failed to update", "error");
     }
   }
@@ -92,13 +125,22 @@ export default function RecipeDetailPage() {
     );
   }
 
-  if (!recipe) {
+  if (error || !recipe) {
     return (
-      <div className="p-4 md:p-8 max-w-3xl mx-auto text-center py-16">
+      <div className="p-4 md:p-8 max-w-3xl mx-auto text-center py-16 space-y-4">
         <p className="text-muted-foreground font-hand text-lg">Recipe not found</p>
-        <Link href="/recipes" className="text-primary hover:underline mt-2 inline-block font-hand">
-          Back to recipes
-        </Link>
+        <button
+          onClick={loadRecipe}
+          className="btn-cookbook inline-flex items-center gap-2"
+          aria-label="Retry"
+        >
+          Retry
+        </button>
+        <div>
+          <Link href="/recipes" className="text-primary hover:underline mt-2 inline-block font-hand">
+            Back to recipes
+          </Link>
+        </div>
       </div>
     );
   }
@@ -122,6 +164,7 @@ export default function RecipeDetailPage() {
         <button
           onClick={toggleFavorite}
           className="p-2 hover:bg-secondary transition-colors rounded"
+          aria-label={recipe.isFavorite ? "Remove from favorites" : "Add to favorites"}
         >
           <Heart
             className={`h-5 w-5 ${
@@ -193,10 +236,15 @@ export default function RecipeDetailPage() {
 
       {/* Scale */}
       <div className="paper-card flex items-center gap-3 p-3">
-        <span className="font-hand text-lg">Servings: {scaledServings}</span>
+        <span className="font-hand text-lg">
+          Servings: {scaledServings}
+          {scale !== 1 && (
+            <span className="text-sm text-muted-foreground ml-1">(original: {recipe.servings})</span>
+          )}
+        </span>
         <div className="flex items-center gap-2 ml-auto">
           <button
-            onClick={() => setScale(Math.max(0.25, scale - 0.25))}
+            onClick={() => persistScale(Math.max(0.25, scale - 0.25))}
             className="w-8 h-8 rounded-full border-2 border-border bg-card flex items-center justify-center hover:bg-secondary"
           >
             <Minus className="h-3 w-3" />
@@ -205,14 +253,14 @@ export default function RecipeDetailPage() {
             {scale}x
           </span>
           <button
-            onClick={() => setScale(scale + 0.25)}
+            onClick={() => persistScale(scale + 0.25)}
             className="w-8 h-8 rounded-full border-2 border-border bg-card flex items-center justify-center hover:bg-secondary"
           >
             <Plus className="h-3 w-3" />
           </button>
           {scale !== 1 && (
             <button
-              onClick={() => setScale(1)}
+              onClick={() => persistScale(1)}
               className="text-sm text-primary hover:underline ml-1 font-hand"
             >
               Reset

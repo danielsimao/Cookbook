@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Plus, X, Package, Search } from "lucide-react";
+import { Plus, X, Search, Undo2 } from "lucide-react";
 import { toast } from "@/components/toaster";
 
 interface PantryItem {
@@ -12,6 +12,7 @@ interface PantryItem {
 export default function PantryPage() {
   const [items, setItems] = useState<PantryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [newItem, setNewItem] = useState("");
   const [search, setSearch] = useState("");
   const [ingredientSuggestions, setIngredientSuggestions] = useState<string[]>(
@@ -19,27 +20,61 @@ export default function PantryPage() {
   );
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [highlightedItem, setHighlightedItem] = useState<string | null>(null);
+  const [undoItem, setUndoItem] = useState<PantryItem | null>(null);
   const blurTimeoutRef = useRef<ReturnType<typeof setTimeout>>(null);
+  const undoTimeoutRef = useRef<ReturnType<typeof setTimeout>>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  async function loadData() {
+    setLoading(true);
+    setError(false);
+    try {
+      const loadPantry = fetch("/api/pantry")
+        .then((r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        })
+        .then(setItems);
+
+      const loadSuggestions = fetch("/api/suggestions")
+        .then((r) => {
+          if (!r.ok) throw new Error(`Suggestions API: ${r.status}`);
+          return r.json();
+        })
+        .then((data) => setIngredientSuggestions(data.ingredients ?? []))
+        .catch((err) => console.error("Failed to load suggestions:", err));
+
+      await Promise.all([loadPantry, loadSuggestions]);
+    } catch {
+      setError(true);
+      toast("Failed to load pantry", "error");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    const loadPantry = fetch("/api/pantry")
-      .then((r) => r.json())
-      .then(setItems);
-
-    const loadSuggestions = fetch("/api/suggestions")
-      .then((r) => r.json())
-      .then((data) => setIngredientSuggestions(data.ingredients ?? []))
-      .catch(() => {});
-
-    Promise.all([loadPantry, loadSuggestions])
-      .catch(() => toast("Failed to load pantry", "error"))
-      .finally(() => setLoading(false));
+    loadData();
   }, []);
 
   async function addItem(name?: string) {
     const itemName = (name ?? newItem).trim();
     if (!itemName) return;
+
+    // Check for duplicates (case-insensitive)
+    const existing = items.find(
+      (i) => i.name.toLowerCase() === itemName.toLowerCase()
+    );
+    if (existing) {
+      setHighlightedItem(existing.name);
+      setTimeout(() => setHighlightedItem(null), 2000);
+      setNewItem("");
+      inputRef.current?.focus();
+      return;
+    }
+
     setShowSuggestions(false);
     setSelectedIndex(-1);
     try {
@@ -48,12 +83,14 @@ export default function PantryPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: itemName }),
       });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const item = await res.json();
       setItems((prev) => {
         if (prev.some((p) => p.id === item.id)) return prev;
         return [...prev, item];
       });
       setNewItem("");
+      inputRef.current?.focus();
     } catch {
       toast("Failed to add item", "error");
     }
@@ -72,13 +109,50 @@ export default function PantryPage() {
       : [];
 
   async function removeItem(name: string) {
+    const removedItem = items.find((i) => i.name === name);
+    if (!removedItem) return;
+
+    // Optimistically remove
+    setItems((prev) => prev.filter((p) => p.name !== name));
+
+    // Clear any previous undo
+    if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
+
+    setUndoItem(removedItem);
+
+    // Auto-dismiss undo after 5 seconds
+    undoTimeoutRef.current = setTimeout(() => {
+      setUndoItem(null);
+    }, 5000);
+
     try {
       await fetch(`/api/pantry?name=${encodeURIComponent(name)}`, {
         method: "DELETE",
       });
-      setItems((prev) => prev.filter((p) => p.name !== name));
     } catch {
+      // Rollback on failure
+      setItems((prev) => [...prev, removedItem]);
+      setUndoItem(null);
       toast("Failed to remove item", "error");
+    }
+  }
+
+  async function handleUndo() {
+    if (!undoItem) return;
+    const item = undoItem;
+    setUndoItem(null);
+    if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
+
+    try {
+      const res = await fetch("/api/pantry", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: item.name }),
+      });
+      const restored = await res.json();
+      setItems((prev) => [...prev, restored]);
+    } catch {
+      toast("Failed to undo", "error");
     }
   }
 
@@ -86,10 +160,39 @@ export default function PantryPage() {
     i.name.toLowerCase().includes(search.toLowerCase())
   );
 
+  if (error && !loading) {
+    return (
+      <div className="p-4 md:p-8 max-w-2xl mx-auto space-y-6">
+        <div>
+          <h1 className="font-display text-2xl font-bold hand-underline">Pantry</h1>
+        </div>
+        <div className="text-center py-12 space-y-4">
+          <p className="font-hand text-base text-muted-foreground">
+            Failed to load pantry
+          </p>
+          <button
+            onClick={loadData}
+            className="btn-cookbook inline-flex items-center gap-2"
+            aria-label="Retry"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-8 max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="font-display text-2xl font-bold hand-underline">Pantry</h1>
+        <h1 className="font-display text-2xl font-bold hand-underline">
+          Pantry
+          {!loading && (
+            <span className="font-hand text-base font-normal text-muted-foreground ml-2">
+              ({items.length} item{items.length !== 1 ? "s" : ""})
+            </span>
+          )}
+        </h1>
         <p className="font-hand text-base text-muted-foreground mt-1">
           Items you already have at home. These will be highlighted on your shopping list.
         </p>
@@ -99,6 +202,7 @@ export default function PantryPage() {
       <div className="relative">
         <div className="flex gap-2">
           <input
+            ref={inputRef}
             type="text"
             value={newItem}
             onChange={(e) => {
@@ -194,19 +298,17 @@ export default function PantryPage() {
         )}
       </div>
 
-      {/* Search */}
-      {items.length > 10 && (
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Filter pantry..."
-            className="input-cookbook w-full pl-10 pr-4 py-2 text-sm"
-          />
-        </div>
-      )}
+      {/* Search — always visible */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Filter pantry..."
+          className="input-cookbook w-full pl-10 pr-4 py-2 text-sm"
+        />
+      </div>
 
       {/* Items list */}
       {loading ? (
@@ -220,12 +322,16 @@ export default function PantryPage() {
           {filtered.map((item) => (
             <div
               key={item.id}
-              className="flex items-center justify-between p-3 border-b border-border group"
+              className={`flex items-center justify-between p-3 border-b border-border transition-all ${
+                highlightedItem === item.name
+                  ? "ring-2 ring-primary animate-pulse bg-primary/5"
+                  : ""
+              }`}
             >
               <span className="text-sm">{item.name}</span>
               <button
                 onClick={() => removeItem(item.name)}
-                className="opacity-0 group-hover:opacity-100 p-1.5 rounded text-muted-foreground hover:text-destructive transition-opacity"
+                className="p-1.5 rounded text-muted-foreground hover:text-destructive transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -242,9 +348,21 @@ export default function PantryPage() {
         </div>
       )}
 
-      <p className="font-hand text-xs text-muted-foreground text-center">
-        {items.length} item{items.length !== 1 ? "s" : ""} in pantry
-      </p>
+      {/* Undo toast */}
+      {undoItem && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-card border rounded-lg shadow-lg px-4 py-3 flex items-center gap-3">
+          <span className="text-sm">
+            Removed &quot;{undoItem.name}&quot;
+          </span>
+          <button
+            onClick={handleUndo}
+            className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+          >
+            <Undo2 className="h-3.5 w-3.5" />
+            Undo
+          </button>
+        </div>
+      )}
     </div>
   );
 }

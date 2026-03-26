@@ -2,13 +2,12 @@
 
 import { Suspense, useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   Plus,
   Search,
   Heart,
   Clock,
-  Filter,
   Grid3X3,
   List,
   Sparkles,
@@ -35,6 +34,8 @@ interface Recipe {
 const WASHI_COLORS = ["washi-tape-pink", "washi-tape-blue", "washi-tape-green", "washi-tape-yellow", "washi-tape-pink"];
 const WASHI_ROTATIONS = ["-1deg", "0.5deg", "-0.5deg", "1deg", "-0.8deg"];
 
+const VIEW_MODE_KEY = "cookbook-view-mode";
+
 export default function RecipesPageWrapper() {
   return (
     <Suspense fallback={<div className="p-8 text-center text-muted-foreground">Loading...</div>}>
@@ -45,9 +46,11 @@ export default function RecipesPageWrapper() {
 
 function RecipesPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [error, setError] = useState(false);
+  const [search, setSearch] = useState(searchParams.get("search") || "");
   const [aiSearch, setAiSearch] = useState(false);
   const [filterMealType, setFilterMealType] = useState<string>(
     searchParams.get("mealType") || ""
@@ -55,11 +58,37 @@ function RecipesPage() {
   const [filterFavorite, setFilterFavorite] = useState(
     searchParams.get("favorite") === "true"
   );
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "list">(() => {
+    try {
+      const saved = localStorage.getItem(VIEW_MODE_KEY);
+      if (saved === "list" || saved === "grid") return saved;
+    } catch {
+      // Storage unavailable
+    }
+    return "grid";
+  });
   const [searching, setSearching] = useState(false);
+
+  function persistViewMode(mode: "grid" | "list") {
+    setViewMode(mode);
+    try { localStorage.setItem(VIEW_MODE_KEY, mode); } catch { /* Storage unavailable */ }
+  }
+
+  function updateURL(params: { search?: string; mealType?: string; favorite?: boolean }) {
+    const url = new URLSearchParams();
+    const s = params.search ?? search;
+    const m = params.mealType ?? filterMealType;
+    const f = params.favorite ?? filterFavorite;
+    if (s) url.set("search", s);
+    if (m) url.set("mealType", m);
+    if (f) url.set("favorite", "true");
+    const qs = url.toString();
+    router.push(qs ? `/recipes?${qs}` : "/recipes");
+  }
 
   const fetchRecipes = useCallback(async () => {
     setLoading(true);
+    setError(false);
     const params = new URLSearchParams();
     if (search && !aiSearch) params.set("search", search);
     if (filterMealType) params.set("mealType", filterMealType);
@@ -70,6 +99,7 @@ function RecipesPage() {
       const data = await res.json();
       setRecipes(data);
     } catch {
+      setError(true);
       toast("Failed to load recipes", "error");
     } finally {
       setLoading(false);
@@ -104,6 +134,19 @@ function RecipesPage() {
     setFilterMealType("");
     setFilterFavorite(false);
     setAiSearch(false);
+    router.push("/recipes");
+  }
+
+  function handleFilterFavorite() {
+    const next = !filterFavorite;
+    setFilterFavorite(next);
+    updateURL({ favorite: next });
+  }
+
+  function handleFilterMealType(type: string) {
+    const next = filterMealType === type ? "" : type;
+    setFilterMealType(next);
+    updateURL({ mealType: next });
   }
 
   const hasFilters = search || filterMealType || filterFavorite;
@@ -149,10 +192,17 @@ function RecipesPage() {
         </button>
       </div>
 
+      {/* AI Search loading indicator */}
+      {searching && (
+        <p className="text-sm text-muted-foreground text-center font-hand animate-pulse">
+          AI is searching your recipes...
+        </p>
+      )}
+
       {/* Filters */}
       <div className="flex items-center gap-2 flex-wrap">
         <button
-          onClick={() => setFilterFavorite(!filterFavorite)}
+          onClick={handleFilterFavorite}
           className={cn(
             "washi-tape washi-tape-pink inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors",
             filterFavorite
@@ -167,9 +217,7 @@ function RecipesPage() {
         {MEAL_TYPES.map((type, i) => (
           <button
             key={type}
-            onClick={() =>
-              setFilterMealType(filterMealType === type ? "" : type)
-            }
+            onClick={() => handleFilterMealType(type)}
             className={cn(
               `washi-tape ${WASHI_COLORS[i]} px-3 py-1.5 text-xs font-medium capitalize transition-colors`,
               filterMealType === type
@@ -193,7 +241,7 @@ function RecipesPage() {
 
         <div className="ml-auto flex items-center gap-1">
           <button
-            onClick={() => setViewMode("grid")}
+            onClick={() => persistViewMode("grid")}
             className={cn(
               "p-1.5 rounded",
               viewMode === "grid" ? "text-foreground" : "text-muted-foreground"
@@ -202,7 +250,7 @@ function RecipesPage() {
             <Grid3X3 className="h-4 w-4" />
           </button>
           <button
-            onClick={() => setViewMode("list")}
+            onClick={() => persistViewMode("list")}
             className={cn(
               "p-1.5 rounded",
               viewMode === "list" ? "text-foreground" : "text-muted-foreground"
@@ -214,7 +262,14 @@ function RecipesPage() {
       </div>
 
       {/* Results */}
-      {loading ? (
+      {error ? (
+        <div className="text-center py-16 space-y-4">
+          <p className="font-hand text-muted-foreground">
+            Failed to load recipes
+          </p>
+          <button onClick={fetchRecipes} className="btn-cookbook">Retry</button>
+        </div>
+      ) : loading ? (
         <div
           className={cn(
             viewMode === "grid"

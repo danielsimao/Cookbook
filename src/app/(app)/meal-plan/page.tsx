@@ -12,6 +12,7 @@ import {
   Search,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   startOfWeek,
   endOfWeek,
@@ -46,38 +47,53 @@ interface Recipe {
 }
 
 const MEAL_TYPES = ["breakfast", "lunch", "dinner"];
-const MEAL_ICONS: Record<string, string> = {
-  breakfast: "🌅",
-  lunch: "☀️",
-  dinner: "🌙",
+const MEAL_LABELS: Record<string, string> = {
+  breakfast: "Breakfast",
+  lunch: "Lunch",
+  dinner: "Dinner",
 };
 
 export default function MealPlanPage() {
+  const router = useRouter();
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(new Date());
   const [items, setItems] = useState<MealPlanItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [showAddModal, setShowAddModal] = useState<{ date: Date; mealType: string } | null>(null);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [recipesLoading, setRecipesLoading] = useState(false);
   const [recipeSearch, setRecipeSearch] = useState("");
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState<string | null>(null);
   const [randomizing, setRandomizing] = useState(false);
+  const [showFillPreview, setShowFillPreview] = useState(false);
 
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 1 });
   const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
+  function navigateWeek(date: Date) {
+    setCurrentWeek(date);
+    const ws = startOfWeek(date, { weekStartsOn: 1 });
+    const we = endOfWeek(date, { weekStartsOn: 1 });
+    router.push(`/meal-plan?startDate=${ws.toISOString()}&endDate=${we.toISOString()}`);
+  }
+
   const fetchMealPlan = useCallback(async () => {
     setLoading(true);
+    setError(false);
     try {
       const params = new URLSearchParams({
         startDate: weekStart.toISOString(),
         endDate: weekEnd.toISOString(),
       });
       const res = await fetch(`/api/meal-plan?${params}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setItems(data);
     } catch {
+      setError(true);
       toast("Failed to load meal plan", "error");
     } finally {
       setLoading(false);
@@ -91,8 +107,16 @@ export default function MealPlanPage() {
   async function openAddModal(date: Date, mealType: string) {
     setShowAddModal({ date, mealType });
     if (recipes.length === 0) {
-      const res = await fetch("/api/recipes");
-      setRecipes(await res.json());
+      setRecipesLoading(true);
+      try {
+        const res = await fetch("/api/recipes");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        setRecipes(await res.json());
+      } catch {
+        toast("Failed to load recipes", "error");
+      } finally {
+        setRecipesLoading(false);
+      }
     }
   }
 
@@ -116,16 +140,24 @@ export default function MealPlanPage() {
     }
   }
 
-  async function removeItem(itemId: string) {
+  async function confirmRemoveItem() {
+    if (!showRemoveConfirm) return;
     try {
-      await fetch(`/api/meal-plan/${itemId}`, { method: "DELETE" });
-      setItems(items.filter((i) => i.id !== itemId));
+      await fetch(`/api/meal-plan/${showRemoveConfirm}`, { method: "DELETE" });
+      setItems(items.filter((i) => i.id !== showRemoveConfirm));
     } catch {
       toast("Failed to remove", "error");
+    } finally {
+      setShowRemoveConfirm(null);
     }
   }
 
   async function randomFill() {
+    setShowFillPreview(true);
+  }
+
+  async function confirmRandomFill() {
+    setShowFillPreview(false);
     setRandomizing(true);
     try {
       const res = await fetch("/api/meal-plan/random", {
@@ -177,6 +209,18 @@ export default function MealPlanPage() {
     r.title.toLowerCase().includes(recipeSearch.toLowerCase())
   );
 
+  if (error && !loading) {
+    return (
+      <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-4">
+        <h1 className="font-display text-xl md:text-2xl font-bold hand-underline">Meal Plan</h1>
+        <div className="text-center py-12 space-y-4">
+          <p className="font-hand text-base text-muted-foreground">Failed to load meal plan</p>
+          <button onClick={fetchMealPlan} className="btn-cookbook" aria-label="Retry">Retry</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-4">
       {/* Header */}
@@ -213,7 +257,7 @@ export default function MealPlanPage() {
       {/* Week navigator */}
       <div className="flex items-center justify-between">
         <button
-          onClick={() => setCurrentWeek(subWeeks(currentWeek, 1))}
+          onClick={() => navigateWeek(subWeeks(currentWeek, 1))}
           className="p-2 hover:bg-secondary rounded"
         >
           <ChevronLeft className="h-5 w-5" />
@@ -233,7 +277,7 @@ export default function MealPlanPage() {
           </button>
         </div>
         <button
-          onClick={() => setCurrentWeek(addWeeks(currentWeek, 1))}
+          onClick={() => navigateWeek(addWeeks(currentWeek, 1))}
           className="p-2 hover:bg-secondary rounded"
         >
           <ChevronRight className="h-5 w-5" />
@@ -248,7 +292,7 @@ export default function MealPlanPage() {
         </div>
       ) : (
         <div className="md:flex md:gap-6">
-          {/* Day selector — grid on mobile, vertical sidebar on desktop */}
+          {/* Day selector */}
           <div className="grid grid-cols-7 gap-1 pb-3 md:pb-0 md:flex md:flex-col md:w-48 md:shrink-0">
             {days.map((day) => {
               const isSelected = isSameDay(day, selectedDay);
@@ -287,7 +331,6 @@ export default function MealPlanPage() {
 
           {/* Day content */}
           <div className="flex-1 space-y-4 md:space-y-5">
-            {/* Day title (mobile only — desktop shows in sidebar) */}
             <div className="flex items-baseline gap-2">
               <h2 className="font-display font-bold text-lg">
                 {format(selectedDay, "EEEE")}
@@ -305,8 +348,11 @@ export default function MealPlanPage() {
               const dayItems = getItemsForDayMeal(selectedDay, mealType);
               return (
                 <div key={mealType}>
-                  <div className="font-hand text-base text-muted-foreground uppercase tracking-wide mb-2">
-                    {MEAL_ICONS[mealType]} {mealType}
+                  <div className="font-hand text-base text-muted-foreground uppercase tracking-wide mb-2" role="heading" aria-level={3}>
+                    <span aria-hidden="true">
+                      {mealType === "breakfast" ? "🌅" : mealType === "lunch" ? "☀️" : "🌙"}
+                    </span>{" "}
+                    {MEAL_LABELS[mealType]}
                   </div>
 
                   {dayItems.length > 0 ? (
@@ -344,8 +390,8 @@ export default function MealPlanPage() {
                                 )}
                               </div>
                               <button
-                                onClick={() => removeItem(item.id)}
-                                className="p-1.5 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 md:opacity-100 transition-opacity"
+                                onClick={() => setShowRemoveConfirm(item.id)}
+                                className="p-1.5 text-muted-foreground hover:text-destructive transition-opacity"
                               >
                                 <X className="h-4 w-4" />
                               </button>
@@ -354,7 +400,11 @@ export default function MealPlanPage() {
                         );
                       })}
                     </div>
-                  ) : null}
+                  ) : (
+                    <p className="text-sm text-muted-foreground font-hand py-2">
+                      No meals planned
+                    </p>
+                  )}
 
                   <button
                     onClick={() => openAddModal(selectedDay, mealType)}
@@ -366,6 +416,58 @@ export default function MealPlanPage() {
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Remove Confirmation */}
+      {showRemoveConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="paper-card p-6 max-w-sm w-full space-y-4">
+            <h3 className="font-display font-bold">Remove this meal?</h3>
+            <p className="text-sm text-muted-foreground">
+              This will remove the meal from your plan.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowRemoveConfirm(null)}
+                className="flex-1 py-2 border hover:bg-secondary font-hand text-base rounded"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmRemoveItem}
+                className="flex-1 py-2 bg-destructive text-destructive-foreground font-hand text-base font-bold rounded"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fill Week Preview */}
+      {showFillPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="paper-card p-6 max-w-sm w-full space-y-4">
+            <h3 className="font-display font-bold">Fill week with random recipes?</h3>
+            <p className="text-sm text-muted-foreground">
+              This will fill empty meal slots with randomly chosen recipes from your cookbook. Confirm to proceed.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowFillPreview(false)}
+                className="flex-1 py-2 border hover:bg-secondary font-hand text-base rounded"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmRandomFill}
+                className="flex-1 py-2 btn-cookbook"
+              >
+                Confirm
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -402,34 +504,41 @@ export default function MealPlanPage() {
               </div>
             </div>
             <div className="flex-1 overflow-y-auto p-3 space-y-1">
-              {filteredRecipes.map((recipe) => (
-                <button
-                  key={recipe.id}
-                  onClick={() => addToMealPlan(recipe.id)}
-                  className="flex items-center gap-3 w-full p-2.5 hover:bg-secondary transition-colors text-left rounded"
-                >
-                  {recipe.imageUrl ? (
-                    <img
-                      src={recipe.imageUrl}
-                      alt=""
-                      className="h-10 w-10 rounded object-cover shrink-0"
-                    />
-                  ) : (
-                    <div className="h-10 w-10 rounded bg-muted flex items-center justify-center shrink-0">
-                      🍽️
-                    </div>
-                  )}
-                  <div className="min-w-0">
-                    <p className="text-sm font-display font-bold truncate">{recipe.title}</p>
-                    {recipe.mealType && (
-                      <p className="font-hand text-sm text-muted-foreground capitalize">
-                        {recipe.mealType}
-                      </p>
+              {recipesLoading ? (
+                <div className="space-y-2 py-4">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-12 bg-muted animate-pulse rounded" />
+                  ))}
+                </div>
+              ) : filteredRecipes.length > 0 ? (
+                filteredRecipes.map((recipe) => (
+                  <button
+                    key={recipe.id}
+                    onClick={() => addToMealPlan(recipe.id)}
+                    className="flex items-center gap-3 w-full p-2.5 hover:bg-secondary transition-colors text-left rounded"
+                  >
+                    {recipe.imageUrl ? (
+                      <img
+                        src={recipe.imageUrl}
+                        alt=""
+                        className="h-10 w-10 rounded object-cover shrink-0"
+                      />
+                    ) : (
+                      <div className="h-10 w-10 rounded bg-muted flex items-center justify-center shrink-0">
+                        🍽️
+                      </div>
                     )}
-                  </div>
-                </button>
-              ))}
-              {filteredRecipes.length === 0 && (
+                    <div className="min-w-0">
+                      <p className="text-sm font-display font-bold truncate">{recipe.title}</p>
+                      {recipe.mealType && (
+                        <p className="font-hand text-sm text-muted-foreground capitalize">
+                          {recipe.mealType}
+                        </p>
+                      )}
+                    </div>
+                  </button>
+                ))
+              ) : (
                 <p className="text-center py-8 text-sm text-muted-foreground font-hand">
                   No recipes found
                 </p>

@@ -49,6 +49,13 @@ function CheckboxIcon({ checked }: CheckboxIconProps) {
   );
 }
 
+const CHECKED_KEY_PREFIX = "cookbook-shopping-checked-";
+const CUSTOM_KEY_PREFIX = "cookbook-shopping-custom-";
+
+function getWeekKey(startDate: string) {
+  return startDate.split("T")[0];
+}
+
 export default function ShoppingListPageWrapper() {
   return (
     <Suspense fallback={<div className="p-8 text-center text-muted-foreground font-hand">Loading...</div>}>
@@ -69,13 +76,41 @@ function ShoppingListPage() {
   const weekEnd = endOfWeek(weekBase, { weekStartsOn: 1 });
   const startDate = weekStart.toISOString();
   const endDate = weekEnd.toISOString();
+  const weekKey = getWeekKey(startDate);
 
   const [ingredients, setIngredients] = useState<MergedIngredient[]>([]);
   const [pantryItems, setPantryItems] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [checked, setChecked] = useState<Set<string>>(new Set());
-  const [customItems, setCustomItems] = useState<string[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [checked, setChecked] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem(`${CHECKED_KEY_PREFIX}${weekKey}`);
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+  const [customItems, setCustomItems] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(`${CUSTOM_KEY_PREFIX}${weekKey}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [newItem, setNewItem] = useState("");
+  const [highlightedItem, setHighlightedItem] = useState<string | null>(null);
+  const [showUncheckConfirm, setShowUncheckConfirm] = useState(false);
+
+  // Persist checked state
+  useEffect(() => {
+    try { localStorage.setItem(`${CHECKED_KEY_PREFIX}${weekKey}`, JSON.stringify(Array.from(checked))); } catch { /* Storage unavailable */ }
+  }, [checked, weekKey]);
+
+  // Persist custom items
+  useEffect(() => {
+    try { localStorage.setItem(`${CUSTOM_KEY_PREFIX}${weekKey}`, JSON.stringify(customItems)); } catch { /* Storage unavailable */ }
+  }, [customItems, weekKey]);
 
   function navigateWeek(date: Date) {
     const ws = startOfWeek(date, { weekStartsOn: 1 });
@@ -83,18 +118,36 @@ function ShoppingListPage() {
     router.push(`/shopping-list?startDate=${ws.toISOString()}&endDate=${we.toISOString()}`);
   }
 
-  const fetchList = useCallback(async () => {
-    setLoading(true);
+  const fetchList = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
     try {
       const params = new URLSearchParams({ startDate, endDate });
       const res = await fetch(`/api/shopping-list?${params}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      setIngredients(data.ingredients || []);
+      const newIngredients: MergedIngredient[] = data.ingredients || [];
+      setIngredients(newIngredients);
       setPantryItems(data.pantryItems || []);
+
+      // Reconcile checked items — keep checked state for items that still exist
+      if (isRefresh) {
+        setChecked((prev) => {
+          const newNames = new Set(newIngredients.map((i) => i.name));
+          const reconciled = new Set<string>();
+          prev.forEach((name) => {
+            if (newNames.has(name) || name.startsWith("custom:")) {
+              reconciled.add(name);
+            }
+          });
+          return reconciled;
+        });
+      }
     } catch {
       toast("Failed to generate shopping list", "error");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [startDate, endDate]);
 
@@ -107,6 +160,19 @@ function ShoppingListPage() {
     if (next.has(name)) next.delete(name);
     else next.add(name);
     setChecked(next);
+  }
+
+  function handleUncheckAll() {
+    if (checkedCount > 3) {
+      setShowUncheckConfirm(true);
+    } else {
+      setChecked(new Set());
+    }
+  }
+
+  function confirmUncheckAll() {
+    setChecked(new Set());
+    setShowUncheckConfirm(false);
   }
 
   // Group by category
@@ -132,7 +198,11 @@ function ShoppingListPage() {
       return;
     }
     if (ingredients.some((i) => i.name.toLowerCase() === lower)) {
-      toast(`"${trimmed}" is already in your shopping list`, "error");
+      // Highlight the existing item instead of just showing an error
+      setHighlightedItem(trimmed);
+      setTimeout(() => setHighlightedItem(null), 2000);
+      toast(`"${trimmed}" is already in your shopping list`, "info");
+      setNewItem("");
       return;
     }
     setCustomItems((prev) => [...prev, trimmed]);
@@ -161,13 +231,20 @@ function ShoppingListPage() {
           <h1 className="font-display text-2xl font-bold hand-underline">Shopping List</h1>
         </div>
         <button
-          onClick={fetchList}
-          className="p-2 rounded-lg hover:bg-secondary"
+          onClick={() => fetchList(true)}
+          disabled={refreshing}
+          className="p-2 rounded-lg hover:bg-secondary inline-flex items-center gap-1.5"
           title="Refresh"
         >
-          <RefreshCw className="h-4 w-4" />
+          <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
         </button>
       </div>
+
+      {refreshing && (
+        <p className="text-sm text-muted-foreground text-center font-hand animate-pulse">
+          Regenerating your shopping list...
+        </p>
+      )}
 
       {/* Week navigation */}
       <div className="flex items-center justify-between">
@@ -205,7 +282,18 @@ function ShoppingListPage() {
             <span className="text-muted-foreground">
               {checkedCount} of {totalItems} items
             </span>
-            <span className="font-medium">{Math.round(progress)}%</span>
+            <div className="flex items-center gap-2">
+              <span className="font-medium">{Math.round(progress)}%</span>
+              {checkedCount > 0 && (
+                <button
+                  onClick={handleUncheckAll}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                  aria-label="Clear all checked"
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
           </div>
           <div className="h-2 bg-muted rounded-full overflow-hidden">
             <div
@@ -256,6 +344,7 @@ function ShoppingListPage() {
                   const inPantry = pantryItems.some(
                     (p) => p.toLowerCase() === item.name.toLowerCase()
                   );
+                  const isHighlighted = highlightedItem?.toLowerCase() === item.name.toLowerCase();
                   return (
                     <button
                       key={item.name}
@@ -264,7 +353,8 @@ function ShoppingListPage() {
                         "flex items-center gap-3 w-full p-3 rounded border-b border-border transition-colors text-left",
                         isChecked
                           ? "bg-muted/50"
-                          : "hover:bg-secondary"
+                          : "hover:bg-secondary",
+                        isHighlighted && "ring-2 ring-primary animate-pulse"
                       )}
                     >
                       <CheckboxIcon checked={isChecked} />
@@ -362,6 +452,32 @@ function ShoppingListPage() {
             >
               <Plus className="h-5 w-5" />
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Uncheck all confirmation */}
+      {showUncheckConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="paper-card p-6 max-w-sm w-full space-y-4">
+            <h3 className="font-display font-bold">Uncheck all items?</h3>
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to uncheck {checkedCount} items?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowUncheckConfirm(false)}
+                className="flex-1 py-2 border hover:bg-secondary font-hand text-base rounded"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmUncheckAll}
+                className="flex-1 py-2 bg-destructive text-destructive-foreground font-hand text-base font-bold rounded"
+              >
+                Uncheck all
+              </button>
+            </div>
           </div>
         </div>
       )}

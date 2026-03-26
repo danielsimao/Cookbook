@@ -28,16 +28,26 @@ export default function DashboardPage() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [favorites, setFavorites] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  function loadRecipes() {
+    setLoading(true);
+    setError(false);
     fetch("/api/recipes")
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
       .then((data) => {
         setRecipes(data.slice(0, 6));
         setFavorites(data.filter((r: Recipe) => r.isFavorite).slice(0, 4));
-        setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    loadRecipes();
   }, []);
 
   return (
@@ -105,8 +115,20 @@ export default function DashboardPage() {
         <span className="text-sm">Search recipes... &quot;something quick with chicken&quot;</span>
       </Link>
 
+      {/* Error state */}
+      {error && !loading && (
+        <div className="paper-card text-center py-12">
+          <p className="font-display text-muted-foreground mb-4">
+            Failed to load recipes
+          </p>
+          <button onClick={loadRecipes} className="btn-cookbook">
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* Favorites */}
-      {favorites.length > 0 && (
+      {!error && favorites.length > 0 && (
         <section>
           <div className="flex items-center justify-between mb-4">
             <h2 className="section-header flex items-center gap-2">
@@ -129,50 +151,52 @@ export default function DashboardPage() {
       )}
 
       {/* Recent Recipes */}
-      <section>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="section-header flex items-center gap-2">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            Recent Recipes
-          </h2>
-          <Link
-            href="/recipes"
-            className="font-hand text-base text-primary hover:underline"
-          >
-            View all
-          </Link>
-        </div>
-        {loading ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="h-48 rounded bg-muted animate-pulse"
-              />
-            ))}
-          </div>
-        ) : recipes.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {recipes.map((recipe) => (
-              <RecipeCard key={recipe.id} recipe={recipe} />
-            ))}
-          </div>
-        ) : (
-          <div className="paper-card text-center py-12">
-            <span className="text-4xl block mb-3">📖</span>
-            <p className="font-display text-muted-foreground mb-4">
-              Your cookbook is empty. Add your first recipe!
-            </p>
+      {!error && (
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="section-header flex items-center gap-2">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              Recent Recipes
+            </h2>
             <Link
-              href="/recipes/new"
-              className="btn-cookbook inline-flex items-center gap-2 px-4 py-2"
+              href="/recipes"
+              className="font-hand text-base text-primary hover:underline"
             >
-              <Plus className="h-4 w-4" />
-              Add Recipe
+              View all
             </Link>
           </div>
-        )}
-      </section>
+          {loading ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="h-48 rounded bg-muted animate-pulse"
+                />
+              ))}
+            </div>
+          ) : recipes.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {recipes.map((recipe) => (
+                <RecipeCard key={recipe.id} recipe={recipe} />
+              ))}
+            </div>
+          ) : (
+            <div className="paper-card text-center py-12">
+              <span className="text-4xl block mb-3">📖</span>
+              <p className="font-display text-muted-foreground mb-4">
+                Your cookbook is empty. Add your first recipe!
+              </p>
+              <Link
+                href="/recipes/new"
+                className="btn-cookbook inline-flex items-center gap-2 px-4 py-2"
+              >
+                <Plus className="h-4 w-4" />
+                Add Recipe
+              </Link>
+            </div>
+          )}
+        </section>
+      )}
     </div>
   );
 }
