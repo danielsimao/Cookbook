@@ -27,9 +27,28 @@ describe("Shopping List", () => {
     mockPush.mockClear();
     localStorage.clear();
 
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockShoppingList),
+    global.fetch = vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+      if (typeof url === "string" && url.includes("/api/shopping-list/custom")) {
+        if (opts?.method === "POST") {
+          const body = JSON.parse(opts.body as string);
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ id: `custom-${Date.now()}`, name: body.name, checked: false }),
+          });
+        }
+        if (opts?.method === "PUT") {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+        }
+        if (opts?.method === "DELETE") {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true }) });
+        }
+        // GET custom items
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockShoppingList),
+      });
     });
   });
 
@@ -140,11 +159,11 @@ describe("Shopping List", () => {
     });
   });
 
-  // S5: Custom items persist across reloads
-  it("S5: custom items persist across page reloads", async () => {
+  // S5: Custom items persist via server API
+  it("S5: custom items are saved to server via POST API call", async () => {
     const user = userEvent.setup();
 
-    const { unmount } = render(<ShoppingListPageWrapper />);
+    render(<ShoppingListPageWrapper />);
 
     await waitFor(() => {
       expect(screen.getByText("Spaghetti")).toBeInTheDocument();
@@ -155,23 +174,20 @@ describe("Shopping List", () => {
     await user.type(customInput, "Bread");
     await user.keyboard("{Enter}");
 
-    expect(screen.getByText("Bread")).toBeInTheDocument();
-
-    // Verify localStorage was written
-    const keys = Object.keys(localStorage);
-    const customKey = keys.find((k) => k.startsWith("cookbook-shopping-custom-"));
-    expect(customKey).toBeTruthy();
-
-    unmount();
-
-    // Remount — custom item should persist from localStorage
-    render(<ShoppingListPageWrapper />);
-
+    // Should appear in UI
     await waitFor(() => {
-      expect(screen.getByText("Spaghetti")).toBeInTheDocument();
+      expect(screen.getByText("Bread")).toBeInTheDocument();
     });
 
-    expect(screen.getByText("Bread")).toBeInTheDocument();
+    // Verify POST API call was made
+    const fetchCalls = (global.fetch as ReturnType<typeof vi.fn>).mock.calls;
+    const postCall = fetchCalls.find(
+      ([url, opts]: [string, RequestInit?]) =>
+        typeof url === "string" && url.includes("/api/shopping-list/custom") && opts?.method === "POST"
+    );
+    expect(postCall).toBeTruthy();
+    const body = JSON.parse(postCall![1].body as string);
+    expect(body.name).toBe("Bread");
   });
 
   // S6: Duplicate custom item highlights existing
@@ -220,9 +236,14 @@ describe("Shopping List", () => {
 
   // S8: Empty state links to meal plan
   it("S8: empty state links to meal plan page", async () => {
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ ingredients: [], pantryItems: [] }),
+    global.fetch = vi.fn().mockImplementation((url: string) => {
+      if (typeof url === "string" && url.includes("/api/shopping-list/custom")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ ingredients: [], pantryItems: [] }),
+      });
     });
 
     render(<ShoppingListPageWrapper />);

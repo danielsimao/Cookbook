@@ -50,7 +50,7 @@
 | N1 | When URL import fails, the error message indicates *why* (invalid URL, unreachable site, parsing failure) — not just "Failed to import" |
 | N2 | When photo import fails, the user is told why and can retry without re-selecting the file |
 | N3 | The image upload field displays the max file size (4.5 MB) to the user before they attempt upload |
-| N4 | When the "to taste" checkbox is active, the quantity field is visually disabled with a clear indication of why |
+| N4 | Clicking "to taste" replaces the quantity/unit fields with a stamp badge; clicking the stamp toggles back to quantity mode (mutually exclusive, no content shift) |
 | N5 | When a duplicate recipe is detected during URL import, the message explains what "Import Again" will do (create a second copy) |
 | N6 | Required fields are clearly marked, and submitting with missing required fields shows inline error messages (not just a disabled button) |
 | N7 | After successful import (URL or photo), the user sees a success confirmation before or during redirect |
@@ -71,7 +71,7 @@
 | MR8 | When save fails, the form retains all entered data — nothing is cleared |
 | MR9 | The save button is disabled and shows a loading spinner while the save request is in flight |
 | MR10 | After a successful save, the user is redirected to the new recipe's detail page with a success toast |
-| MR11 | Ingredient group field allows grouping ingredients (e.g., "For the sauce", "For the dough") and groups are preserved on save |
+| MR11 | Ingredient group field is hidden by default behind a "+ group" link; clicking reveals an input; set groups display as washi-tape labels; groups are preserved on save |
 
 ---
 
@@ -136,7 +136,7 @@
 | S2 | The user can uncheck all items at once, with a confirmation if more than 3 items are checked |
 | S3 | The refresh/regenerate button shows a loading state and explains it will regenerate the list (not just an icon) |
 | S4 | When regenerating the shopping list, previously checked items are reconciled — items that still exist remain checked |
-| S5 | Custom items persist across page reloads (within the same week) |
+| S5 | Custom items persist server-side (database) and sync across devices within the same week; auto-cleaned after 2 weeks |
 | S6 | When adding a custom item that already exists (case-insensitive), the duplicate is highlighted instead of showing only an error |
 | S7 | The progress bar displays a percentage label (e.g., "5 of 12 items") |
 | S8 | When the shopping list is empty because there's no meal plan, the empty state links directly to the meal plan page |

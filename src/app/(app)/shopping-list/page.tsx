@@ -50,7 +50,12 @@ function CheckboxIcon({ checked }: CheckboxIconProps) {
 }
 
 const CHECKED_KEY_PREFIX = "cookbook-shopping-checked-";
-const CUSTOM_KEY_PREFIX = "cookbook-shopping-custom-";
+
+interface CustomItem {
+  id: string;
+  name: string;
+  checked: boolean;
+}
 
 function getWeekKey(startDate: string) {
   return startDate.split("T")[0];
@@ -90,27 +95,23 @@ function ShoppingListPage() {
       return new Set();
     }
   });
-  const [customItems, setCustomItems] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem(`${CUSTOM_KEY_PREFIX}${weekKey}`);
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [customItems, setCustomItems] = useState<CustomItem[]>([]);
   const [newItem, setNewItem] = useState("");
   const [highlightedItem, setHighlightedItem] = useState<string | null>(null);
   const [showUncheckConfirm, setShowUncheckConfirm] = useState(false);
 
-  // Persist checked state
+  // Persist checked state for recipe ingredients only
   useEffect(() => {
     try { localStorage.setItem(`${CHECKED_KEY_PREFIX}${weekKey}`, JSON.stringify(Array.from(checked))); } catch { /* Storage unavailable */ }
   }, [checked, weekKey]);
 
-  // Persist custom items
+  // Fetch custom items from server
   useEffect(() => {
-    try { localStorage.setItem(`${CUSTOM_KEY_PREFIX}${weekKey}`, JSON.stringify(customItems)); } catch { /* Storage unavailable */ }
-  }, [customItems, weekKey]);
+    fetch(`/api/shopping-list/custom?startDate=${startDate}`)
+      .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
+      .then((items: CustomItem[]) => setCustomItems(items))
+      .catch(() => {});
+  }, [startDate]);
 
   function navigateWeek(date: Date) {
     const ws = startOfWeek(date, { weekStartsOn: 1 });
@@ -156,10 +157,28 @@ function ShoppingListPage() {
   }, [fetchList]);
 
   function toggleCheck(name: string) {
-    const next = new Set(checked);
-    if (next.has(name)) next.delete(name);
-    else next.add(name);
-    setChecked(next);
+    if (name.startsWith("custom:")) {
+      // Toggle custom item checked state via API
+      const itemName = name.slice("custom:".length);
+      const item = customItems.find((i) => i.name === itemName);
+      if (!item) return;
+      const newChecked = !item.checked;
+      setCustomItems((prev) => prev.map((i) => i.name === itemName ? { ...i, checked: newChecked } : i));
+      fetch("/api/shopping-list/custom", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ weekStart: startDate, name: itemName, checked: newChecked }),
+      }).catch(() => {
+        // Rollback on failure
+        setCustomItems((prev) => prev.map((i) => i.name === itemName ? { ...i, checked: !newChecked } : i));
+      });
+    } else {
+      // Recipe ingredients — localStorage only
+      const next = new Set(checked);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      setChecked(next);
+    }
   }
 
   function handleUncheckAll() {
@@ -172,6 +191,16 @@ function ShoppingListPage() {
 
   function confirmUncheckAll() {
     setChecked(new Set());
+    // Uncheck all custom items
+    const checkedCustom = customItems.filter((i) => i.checked);
+    setCustomItems((prev) => prev.map((i) => ({ ...i, checked: false })));
+    checkedCustom.forEach((item) => {
+      fetch("/api/shopping-list/custom", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ weekStart: startDate, name: item.name, checked: false }),
+      }).catch(() => {});
+    });
     setShowUncheckConfirm(false);
   }
 
@@ -186,36 +215,59 @@ function ShoppingListPage() {
   const totalItems = ingredients.length + customItems.length;
   const checkedCount =
     ingredients.filter((i) => checked.has(i.name)).length +
-    customItems.filter((i) => checked.has(`custom:${i}`)).length;
+    customItems.filter((i) => i.checked).length;
   const progress = totalItems > 0 ? (checkedCount / totalItems) * 100 : 0;
 
-  function addCustomItem() {
+  async function addCustomItem() {
     const trimmed = newItem.trim();
     if (!trimmed) return;
     const lower = trimmed.toLowerCase();
-    if (customItems.some((i) => i.toLowerCase() === lower)) {
+    if (customItems.some((i) => i.name.toLowerCase() === lower)) {
       toast(`"${trimmed}" is already in your extra items`, "error");
       return;
     }
     if (ingredients.some((i) => i.name.toLowerCase() === lower)) {
-      // Highlight the existing item instead of just showing an error
       setHighlightedItem(trimmed);
       setTimeout(() => setHighlightedItem(null), 2000);
       toast(`"${trimmed}" is already in your shopping list`, "info");
       setNewItem("");
       return;
     }
-    setCustomItems((prev) => [...prev, trimmed]);
+    // Optimistic add
+    const tempItem: CustomItem = { id: `temp-${Date.now()}`, name: trimmed, checked: false };
+    setCustomItems((prev) => [...prev, tempItem]);
     setNewItem("");
+
+    try {
+      const res = await fetch("/api/shopping-list/custom", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ weekStart: startDate, name: trimmed }),
+      });
+      if (!res.ok) throw new Error();
+      const saved: CustomItem = await res.json();
+      // Replace temp item with server response
+      setCustomItems((prev) => prev.map((i) => i.id === tempItem.id ? saved : i));
+    } catch {
+      // Rollback
+      setCustomItems((prev) => prev.filter((i) => i.id !== tempItem.id));
+      toast("Failed to add item", "error");
+    }
   }
 
-  function removeCustomItem(item: string) {
-    setCustomItems((prev) => prev.filter((i) => i !== item));
-    setChecked((prev) => {
-      const next = new Set(prev);
-      next.delete(`custom:${item}`);
-      return next;
-    });
+  async function removeCustomItem(name: string) {
+    const removed = customItems.find((i) => i.name === name);
+    setCustomItems((prev) => prev.filter((i) => i.name !== name));
+
+    try {
+      await fetch(`/api/shopping-list/custom?weekStart=${encodeURIComponent(startDate)}&name=${encodeURIComponent(name)}`, {
+        method: "DELETE",
+      });
+    } catch {
+      // Rollback
+      if (removed) setCustomItems((prev) => [...prev, removed]);
+      toast("Failed to remove item", "error");
+    }
   }
 
   return (
@@ -398,32 +450,31 @@ function ShoppingListPage() {
           {customItems.length > 0 && (
             <div className="space-y-0">
               {customItems.map((item) => {
-                const key = `custom:${item}`;
-                const isChecked = checked.has(key);
+                const key = `custom:${item.name}`;
                 return (
                   <div
-                    key={item}
+                    key={item.id}
                     className={cn(
                       "flex items-center gap-3 w-full p-3 rounded border-b border-border transition-colors",
-                      isChecked ? "bg-muted/50" : "hover:bg-secondary"
+                      item.checked ? "bg-muted/50" : "hover:bg-secondary"
                     )}
                   >
                     <button
                       onClick={() => toggleCheck(key)}
                       className="flex items-center gap-3 flex-1 min-w-0 text-left"
                     >
-                      <CheckboxIcon checked={isChecked} />
+                      <CheckboxIcon checked={item.checked} />
                       <span
                         className={cn(
                           "text-sm",
-                          isChecked && "line-through text-muted-foreground"
+                          item.checked && "line-through text-muted-foreground"
                         )}
                       >
-                        {item}
+                        {item.name}
                       </span>
                     </button>
                     <button
-                      onClick={() => removeCustomItem(item)}
+                      onClick={() => removeCustomItem(item.name)}
                       className="text-muted-foreground hover:text-destructive transition-colors shrink-0 p-1"
                     >
                       <X className="h-4 w-4" />

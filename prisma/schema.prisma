@@ -70,3 +70,13 @@ model ShoppingListCache {
   items        Json
   createdAt    DateTime @default(now())
 }
+
+model CustomShoppingItem {
+  id        String   @id @default(cuid())
+  weekStart DateTime
+  name      String
+  checked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@unique([weekStart, name])
+}
