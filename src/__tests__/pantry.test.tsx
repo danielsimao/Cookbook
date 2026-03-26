@@ -80,9 +80,9 @@ describe("Pantry", () => {
       expect(screen.getByText("Salt")).toBeInTheDocument();
     });
 
-    // Count should be prominently displayed (in header area, not just small text at bottom)
-    const header = document.querySelector("h1");
-    expect(header?.textContent).toContain("5");
+    // Count should be prominently displayed in the header area
+    const headerArea = document.querySelector("h1")?.parentElement;
+    expect(headerArea?.textContent).toContain("5");
   });
 
   // P3: Search always visible

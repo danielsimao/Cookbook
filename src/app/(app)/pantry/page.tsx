@@ -183,17 +183,17 @@ export default function PantryPage() {
   }
 
   return (
-    <div className="p-4 md:p-8 max-w-2xl mx-auto space-y-6">
+    <div className="p-4 md:p-8 max-w-2xl mx-auto space-y-4 md:space-y-6">
       <div>
-        <h1 className="font-display text-2xl font-bold hand-underline">
-          Pantry
+        <div className="flex items-baseline gap-3">
+          <h1 className="font-display text-2xl font-bold hand-underline">Pantry</h1>
           {!loading && (
-            <span className="font-hand text-base font-normal text-muted-foreground ml-2">
-              ({items.length} item{items.length !== 1 ? "s" : ""})
+            <span className="font-hand text-base text-muted-foreground">
+              {items.length} item{items.length !== 1 ? "s" : ""}
             </span>
           )}
-        </h1>
-        <p className="font-hand text-base text-muted-foreground mt-1">
+        </div>
+        <p className="font-hand text-sm text-muted-foreground mt-1 hidden md:block">
           Items you already have at home. These will be highlighted on your shopping list.
         </p>
       </div>
@@ -299,14 +299,14 @@ export default function PantryPage() {
       </div>
 
       {/* Search — always visible */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <div className="relative -mt-2 md:mt-0">
+        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Filter pantry..."
-          className="input-cookbook w-full pl-10 pr-4 py-2 text-sm"
+          className="input-cookbook w-full pl-8 pr-4 py-2 text-sm"
         />
       </div>
 
