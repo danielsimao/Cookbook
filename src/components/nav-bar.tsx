@@ -8,6 +8,7 @@ import {
   ShoppingCart,
   Home,
   Package,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -59,6 +60,20 @@ export function NavBar() {
             );
           })}
         </nav>
+        <div className="p-4 border-t">
+          <Link
+            href="/settings"
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 text-sm transition-colors font-hand text-lg",
+              pathname.startsWith("/settings")
+                ? "text-primary font-bold"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Settings className="h-4 w-4" />
+            Settings
+          </Link>
+        </div>
       </aside>
 
       {/* Mobile bottom nav */}
