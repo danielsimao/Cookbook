@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Lock } from "lucide-react";
+import { Lock, Mail } from "lucide-react";
 
 export default function LoginPage() {
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -30,17 +31,16 @@ export default function LoginPage() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ email, password }),
       });
 
       if (res.ok) {
         router.push("/");
         router.refresh();
       } else {
-        setError("Wrong password");
+        setError("Wrong email or password");
       }
     } catch (err) {
-      // L4: Descriptive network error
       const message =
         err instanceof TypeError && err.message.includes("fetch")
           ? "Unable to connect to the server. Check your internet connection."
@@ -56,10 +56,23 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <h1 className="font-display text-3xl font-bold text-primary mb-2">Cookbook</h1>
-          <p className="font-hand text-lg text-muted-foreground">Enter password to continue</p>
+          <p className="font-hand text-lg text-muted-foreground">Sign in to continue</p>
         </div>
 
         <form onSubmit={handleSubmit} className="paper-card p-6 space-y-4">
+          <div className="relative">
+            <Mail className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email"
+              autoFocus
+              autoComplete="email"
+              className="input-cookbook pl-8"
+            />
+          </div>
+
           <div className="relative">
             <Lock className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
@@ -67,7 +80,7 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Password"
-              autoFocus
+              autoComplete="current-password"
               className="input-cookbook pl-8"
             />
           </div>
@@ -78,7 +91,7 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            disabled={loading || !password}
+            disabled={loading || !email || !password}
             className="w-full btn-cookbook disabled:opacity-50"
           >
             {loading ? "Signing in..." : "Sign in"}

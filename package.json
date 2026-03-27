@@ -60,8 +60,12 @@
     "eslint-config-next": "16.1.6",
     "jsdom": "^29.0.1",
     "tailwindcss": "^4",
+    "tsx": "^4.21.0",
     "typescript": "^5",
     "vitest": "^4.1.1"
+  },
+  "prisma": {
+    "seed": "npx tsx prisma/seed.ts"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

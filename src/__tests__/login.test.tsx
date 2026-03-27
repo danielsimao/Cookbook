@@ -13,14 +13,6 @@ vi.mock("next/navigation", () => ({
 
 import LoginPage from "@/app/login/page";
 
-function mockFetch(status: number, body?: object) {
-  return vi.fn().mockResolvedValue({
-    ok: status >= 200 && status < 300,
-    status,
-    json: () => Promise.resolve(body ?? {}),
-  });
-}
-
 describe("Login Page", () => {
   beforeEach(() => {
     mockPush.mockClear();
@@ -29,7 +21,6 @@ describe("Login Page", () => {
 
   // L1: Already authenticated → redirect
   it("L1: redirects to / when user is already authenticated", async () => {
-    // Auth check on mount returns ok → user is already logged in
     global.fetch = vi.fn().mockResolvedValue({ ok: true });
 
     render(<LoginPage />);
@@ -39,8 +30,8 @@ describe("Login Page", () => {
     });
   });
 
-  // L2: Wrong password shows error, input not cleared
-  it("L2: shows 'Wrong password' error and preserves input on failed login", async () => {
+  // L2: Wrong credentials shows error, inputs not cleared
+  it("L2: shows error and preserves input on failed login", async () => {
     global.fetch = vi.fn().mockImplementation((_url: string, opts?: RequestInit) => {
       if (opts?.method === "HEAD") return Promise.resolve({ ok: false });
       return Promise.resolve({ ok: false, status: 401, json: () => Promise.resolve({}) });
@@ -49,28 +40,29 @@ describe("Login Page", () => {
 
     render(<LoginPage />);
 
-    const input = screen.getByPlaceholderText("Password");
-    await user.type(input, "wrongpass");
+    await user.type(screen.getByPlaceholderText("Email"), "test@example.com");
+    await user.type(screen.getByPlaceholderText("Password"), "wrongpass");
     await user.click(screen.getByRole("button", { name: /sign in/i }));
 
     await waitFor(() => {
-      expect(screen.getByText("Wrong password")).toBeInTheDocument();
+      expect(screen.getByText(/wrong email or password/i)).toBeInTheDocument();
     });
 
-    // Input should NOT be cleared
-    expect(input).toHaveValue("wrongpass");
+    expect(screen.getByPlaceholderText("Password")).toHaveValue("wrongpass");
+    expect(screen.getByPlaceholderText("Email")).toHaveValue("test@example.com");
   });
 
   // L3: Button shows loading state
   it("L3: shows 'Signing in...' and disables button while loading", async () => {
     global.fetch = vi.fn().mockImplementation((_url: string, opts?: RequestInit) => {
       if (opts?.method === "HEAD") return Promise.resolve({ ok: false });
-      return new Promise(() => {}); // Never resolves for POST
+      return new Promise(() => {});
     });
     const user = userEvent.setup();
 
     render(<LoginPage />);
 
+    await user.type(screen.getByPlaceholderText("Email"), "test@example.com");
     await user.type(screen.getByPlaceholderText("Password"), "test");
     await user.click(screen.getByRole("button", { name: /sign in/i }));
 
@@ -80,7 +72,7 @@ describe("Login Page", () => {
   });
 
   // L4: Network error shows descriptive message
-  it("L4: shows a descriptive error on network failure (not just 'Something went wrong')", async () => {
+  it("L4: shows a descriptive error on network failure", async () => {
     global.fetch = vi.fn().mockImplementation((_url: string, opts?: RequestInit) => {
       if (opts?.method === "HEAD") return Promise.resolve({ ok: false });
       if (opts?.method === "POST") return Promise.reject(new TypeError("Failed to fetch"));
@@ -90,6 +82,7 @@ describe("Login Page", () => {
 
     render(<LoginPage />);
 
+    await user.type(screen.getByPlaceholderText("Email"), "test@example.com");
     await user.type(screen.getByPlaceholderText("Password"), "test");
     await user.click(screen.getByRole("button", { name: /sign in/i }));
 
@@ -109,6 +102,7 @@ describe("Login Page", () => {
 
     render(<LoginPage />);
 
+    await user.type(screen.getByPlaceholderText("Email"), "admin@cookbook.local");
     await user.type(screen.getByPlaceholderText("Password"), "correct");
     await user.click(screen.getByRole("button", { name: /sign in/i }));
 

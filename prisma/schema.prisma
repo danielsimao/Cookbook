@@ -8,6 +8,21 @@ datasource db {
   directUrl = env("POSTGRES_URL_NON_POOLING")
 }
 
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String   @default("member")
+  createdAt    DateTime @default(now())
+
+  recipes             Recipe[]
+  mealPlanItems       MealPlanItem[]
+  pantryItems         PantryItem[]
+  shoppingListCaches  ShoppingListCache[]
+  customShoppingItems CustomShoppingItem[]
+}
+
 model Recipe {
   id          String   @id @default(cuid())
   title       String
@@ -24,10 +39,15 @@ model Recipe {
   notes       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   ingredients   Ingredient[]
   steps         Step[]
   mealPlanItems MealPlanItem[]
+  sharedRecipes SharedRecipe[]
+
+  @@index([userId])
 }
 
 model Ingredient {
@@ -55,20 +75,32 @@ model MealPlanItem {
   date     DateTime
   mealType String
   recipeId String
+  userId   String
   recipe   Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model PantryItem {
-  id   String @id @default(cuid())
-  name String @unique
+  id     String @id @default(cuid())
+  name   String
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
 }
 
 model ShoppingListCache {
   id           String   @id @default(cuid())
-  weekStart    DateTime @unique
+  weekStart    DateTime
   mealPlanHash String
   items        Json
   createdAt    DateTime @default(now())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStart])
 }
 
 model CustomShoppingItem {
@@ -77,6 +109,17 @@ model CustomShoppingItem {
   name      String
   checked   Boolean  @default(false)
   createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([weekStart, name])
+  @@unique([userId, weekStart, name])
+}
+
+model SharedRecipe {
+  id        String   @id @default(cuid())
+  token     String   @unique @default(cuid())
+  recipeId  String
+  recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  createdBy String
+  createdAt DateTime @default(now())
 }

@@ -7,8 +7,8 @@ const JWT_SECRET = new TextEncoder().encode(
 
 const COOKIE_NAME = "cookbook-auth";
 
-export async function createToken(): Promise<string> {
-  return new SignJWT({ authenticated: true })
+export async function createToken(userId: string, role: string): Promise<string> {
+  return new SignJWT({ userId, role })
     .setProtectedHeader({ alg: "HS256" })
     .setExpirationTime("30d")
     .sign(JWT_SECRET);
@@ -30,8 +30,27 @@ export async function isAuthenticated(): Promise<boolean> {
   return verifyToken(token);
 }
 
-export function validatePassword(password: string): boolean {
-  return password === (process.env.APP_PASSWORD || "cookbook123");
+/**
+ * Extract userId from the JWT in the auth cookie.
+ * Use in API routes to scope all queries to the authenticated user.
+ */
+export async function getUserId(): Promise<string> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(COOKIE_NAME)?.value;
+  if (!token) throw new Error("Not authenticated");
+  const { payload } = await jwtVerify(token, JWT_SECRET);
+  return payload.userId as string;
+}
+
+/**
+ * Extract full user info (userId + role) from the JWT.
+ */
+export async function getUserInfo(): Promise<{ userId: string; role: string }> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(COOKIE_NAME)?.value;
+  if (!token) throw new Error("Not authenticated");
+  const { payload } = await jwtVerify(token, JWT_SECRET);
+  return { userId: payload.userId as string, role: payload.role as string };
 }
 
 export { COOKIE_NAME };
