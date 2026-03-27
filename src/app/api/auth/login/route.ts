@@ -36,9 +36,10 @@ export async function POST(request: NextRequest) {
     });
 
     return response;
-  } catch {
+  } catch (error) {
+    console.error("[api/auth/login] Login failed:", error);
     return NextResponse.json(
-      { error: "Login failed" },
+      { error: "Login failed. Please try again later." },
       { status: 500 }
     );
   }

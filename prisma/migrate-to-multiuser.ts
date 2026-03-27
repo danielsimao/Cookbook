@@ -13,6 +13,25 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+function isAlreadyExistsError(e: unknown): boolean {
+  const msg = e instanceof Error ? e.message : String(e);
+  return msg.includes("already exists") || msg.includes("duplicate");
+}
+
+async function safeExec(description: string, fn: () => Promise<void>) {
+  try {
+    await fn();
+    console.log(`  OK: ${description}`);
+  } catch (e) {
+    if (isAlreadyExistsError(e)) {
+      console.log(`  SKIP: ${description} (already exists)`);
+    } else {
+      console.error(`  FAIL: ${description}:`, e instanceof Error ? e.message : e);
+      throw e;
+    }
+  }
+}
+
 async function main() {
   const adminEmail = process.env.ADMIN_EMAIL || "admin@cookbook.local";
   const adminPassword = process.env.ADMIN_PASSWORD || process.env.APP_PASSWORD || "cookbook123";
@@ -63,12 +82,9 @@ async function main() {
   console.log("Step 3: Add nullable userId columns...");
   const tables = ["Recipe", "MealPlanItem", "PantryItem", "ShoppingListCache", "CustomShoppingItem"];
   for (const table of tables) {
-    try {
-      await prisma.$executeRawUnsafe(`ALTER TABLE "${table}" ADD COLUMN IF NOT EXISTS "userId" TEXT`);
-      console.log(`  Added userId to ${table}`);
-    } catch (e) {
-      console.log(`  userId already exists on ${table}`);
-    }
+    await safeExec(`Add userId to ${table}`, () =>
+      prisma.$executeRawUnsafe(`ALTER TABLE "${table}" ADD COLUMN IF NOT EXISTS "userId" TEXT`).then(() => {})
+    );
   }
 
   console.log("Step 4: Backfill userId...");
@@ -95,28 +111,26 @@ async function main() {
     { table: "CustomShoppingItem", name: "CustomShoppingItem_userId_fkey" },
   ];
   for (const fk of fks) {
-    try {
-      await prisma.$executeRawUnsafe(
+    await safeExec(`FK ${fk.name}`, () =>
+      prisma.$executeRawUnsafe(
         `ALTER TABLE "${fk.table}" ADD CONSTRAINT "${fk.name}" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`
-      );
-    } catch { /* already exists */ }
+      ).then(() => {})
+    );
   }
 
   // Add indexes
-  try { await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Recipe_userId_idx" ON "Recipe"("userId")`); } catch { /* */ }
-  try { await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "MealPlanItem_userId_idx" ON "MealPlanItem"("userId")`); } catch { /* */ }
+  await safeExec("Index Recipe_userId_idx", () => prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Recipe_userId_idx" ON "Recipe"("userId")`).then(() => {}));
+  await safeExec("Index MealPlanItem_userId_idx", () => prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "MealPlanItem_userId_idx" ON "MealPlanItem"("userId")`).then(() => {}));
 
-  // Update unique constraints for PantryItem
-  try { await prisma.$executeRawUnsafe(`ALTER TABLE "PantryItem" DROP CONSTRAINT IF EXISTS "PantryItem_name_key"`); } catch { /* */ }
-  try { await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "PantryItem_userId_name_key" ON "PantryItem"("userId", "name")`); } catch { /* */ }
+  // Update unique constraints
+  await safeExec("Drop PantryItem_name_key", () => prisma.$executeRawUnsafe(`ALTER TABLE "PantryItem" DROP CONSTRAINT IF EXISTS "PantryItem_name_key"`).then(() => {}));
+  await safeExec("Index PantryItem_userId_name_key", () => prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "PantryItem_userId_name_key" ON "PantryItem"("userId", "name")`).then(() => {}));
 
-  // Update unique constraints for ShoppingListCache
-  try { await prisma.$executeRawUnsafe(`ALTER TABLE "ShoppingListCache" DROP CONSTRAINT IF EXISTS "ShoppingListCache_weekStart_key"`); } catch { /* */ }
-  try { await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "ShoppingListCache_userId_weekStart_key" ON "ShoppingListCache"("userId", "weekStart")`); } catch { /* */ }
+  await safeExec("Drop ShoppingListCache_weekStart_key", () => prisma.$executeRawUnsafe(`ALTER TABLE "ShoppingListCache" DROP CONSTRAINT IF EXISTS "ShoppingListCache_weekStart_key"`).then(() => {}));
+  await safeExec("Index ShoppingListCache_userId_weekStart_key", () => prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "ShoppingListCache_userId_weekStart_key" ON "ShoppingListCache"("userId", "weekStart")`).then(() => {}));
 
-  // Update unique constraints for CustomShoppingItem
-  try { await prisma.$executeRawUnsafe(`ALTER TABLE "CustomShoppingItem" DROP CONSTRAINT IF EXISTS "CustomShoppingItem_weekStart_name_key"`); } catch { /* */ }
-  try { await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "CustomShoppingItem_userId_weekStart_name_key" ON "CustomShoppingItem"("userId", "weekStart", "name")`); } catch { /* */ }
+  await safeExec("Drop CustomShoppingItem_weekStart_name_key", () => prisma.$executeRawUnsafe(`ALTER TABLE "CustomShoppingItem" DROP CONSTRAINT IF EXISTS "CustomShoppingItem_weekStart_name_key"`).then(() => {}));
+  await safeExec("Index CustomShoppingItem_userId_weekStart_name_key", () => prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "CustomShoppingItem_userId_weekStart_name_key" ON "CustomShoppingItem"("userId", "weekStart", "name")`).then(() => {}));
 
   // Create SharedRecipe table
   console.log("Step 7: Create SharedRecipe table...");
@@ -131,7 +145,7 @@ async function main() {
       CONSTRAINT "SharedRecipe_recipeId_fkey" FOREIGN KEY ("recipeId") REFERENCES "Recipe"("id") ON DELETE CASCADE ON UPDATE CASCADE
     )
   `);
-  try { await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "SharedRecipe_token_key" ON "SharedRecipe"("token")`); } catch { /* */ }
+  await safeExec("Index SharedRecipe_token_key", () => prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "SharedRecipe_token_key" ON "SharedRecipe"("token")`).then(() => {}));
 
   console.log("\nMigration complete!");
   console.log(`Admin email: ${adminEmail}`);

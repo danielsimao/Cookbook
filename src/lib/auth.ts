@@ -39,7 +39,10 @@ export async function getUserId(): Promise<string> {
   const token = cookieStore.get(COOKIE_NAME)?.value;
   if (!token) throw new Error("Not authenticated");
   const { payload } = await jwtVerify(token, JWT_SECRET);
-  return payload.userId as string;
+  if (typeof payload.userId !== "string" || !payload.userId) {
+    throw new Error("Invalid token: missing userId. Please log in again.");
+  }
+  return payload.userId;
 }
 
 /**
@@ -50,7 +53,10 @@ export async function getUserInfo(): Promise<{ userId: string; role: string }> {
   const token = cookieStore.get(COOKIE_NAME)?.value;
   if (!token) throw new Error("Not authenticated");
   const { payload } = await jwtVerify(token, JWT_SECRET);
-  return { userId: payload.userId as string, role: payload.role as string };
+  if (typeof payload.userId !== "string" || !payload.userId) {
+    throw new Error("Invalid token: missing userId. Please log in again.");
+  }
+  return { userId: payload.userId, role: (payload.role as string) || "member" };
 }
 
 export { COOKIE_NAME };
