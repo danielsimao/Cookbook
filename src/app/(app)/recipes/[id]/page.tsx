@@ -13,6 +13,7 @@ import {
   ExternalLink,
   Minus,
   Plus,
+  Share2,
 } from "lucide-react";
 import { toast } from "@/components/toaster";
 import { ResponsiveModal } from "@/components/responsive-modal";
@@ -116,6 +117,19 @@ export default function RecipeDetailPage() {
     }
   }
 
+  async function handleShare() {
+    try {
+      const res = await fetch(`/api/recipes/${id}/share`, { method: "POST" });
+      if (!res.ok) throw new Error();
+      const { token } = await res.json();
+      const url = `${window.location.origin}/recipes/share/${token}`;
+      await navigator.clipboard.writeText(url);
+      toast("Share link copied to clipboard!", "success");
+    } catch {
+      toast("Failed to create share link", "error");
+    }
+  }
+
   if (loading) {
     return (
       <div className="p-4 md:p-8 max-w-3xl mx-auto space-y-4">
@@ -162,6 +176,13 @@ export default function RecipeDetailPage() {
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div className="flex-1" />
+        <button
+          onClick={handleShare}
+          className="p-2 hover:bg-secondary transition-colors rounded"
+          title="Share recipe"
+        >
+          <Share2 className="h-5 w-5 text-muted-foreground" />
+        </button>
         <button
           onClick={toggleFavorite}
           className="p-2 hover:bg-secondary transition-colors rounded"

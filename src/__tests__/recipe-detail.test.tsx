@@ -190,12 +190,9 @@ describe("Recipe Detail", () => {
       expect(screen.getByText("Pasta Carbonara")).toBeInTheDocument();
     });
 
-    // Find the heart button and click it
-    const buttons = screen.getAllByRole("button");
-    const heartButton = buttons.find(
-      (b) => b.querySelector("svg")?.classList.toString().includes("text-muted")
-    );
-    if (heartButton) await user.click(heartButton);
+    // Find the heart button by its aria-label and click it
+    const heartButton = screen.getByRole("button", { name: /add to favorites/i });
+    await user.click(heartButton);
 
     // Heart should immediately change to filled (optimistic)
     await waitFor(() => {
