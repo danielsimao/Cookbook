@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getUserId } from "@/lib/auth";
 import { scrapeUrl } from "@/lib/scraper";
 import { extractRecipeFromHtml } from "@/lib/ai";
 
 export async function POST(request: NextRequest) {
   try {
+    const userId = await getUserId();
     const { url, force } = await request.json();
 
     if (!url) {
@@ -16,7 +18,7 @@ export async function POST(request: NextRequest) {
 
     if (!force) {
       const existing = await prisma.recipe.findFirst({
-        where: { sourceUrl: url },
+        where: { sourceUrl: url, userId },
         select: { id: true, title: true },
       });
       if (existing) {
@@ -32,6 +34,7 @@ export async function POST(request: NextRequest) {
 
     const recipe = await prisma.recipe.create({
       data: {
+        userId,
         title: parsed.title,
         description: parsed.description ?? null,
         sourceUrl: url,

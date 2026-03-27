@@ -1,20 +1,25 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getUserId } from "@/lib/auth";
 import { DEFAULT_CUISINES, DEFAULT_TAGS } from "@/lib/suggestions";
 
 export async function GET() {
   try {
+    const userId = await getUserId();
     const [cuisineRows, tagRows, ingredientRows] = await Promise.all([
       prisma.recipe.findMany({
-        where: { cuisine: { not: null } },
+        where: { userId, cuisine: { not: null } },
         select: { cuisine: true },
         distinct: ["cuisine"],
       }),
       prisma.$queryRaw<{ tag: string }[]>`
-        SELECT DISTINCT unnest(tags) as tag FROM "Recipe"
+        SELECT DISTINCT unnest(tags) as tag FROM "Recipe" WHERE "userId" = ${userId}
       `,
       prisma.$queryRaw<{ name: string }[]>`
-        SELECT DISTINCT name FROM "Ingredient" ORDER BY name
+        SELECT DISTINCT "Ingredient".name FROM "Ingredient"
+        JOIN "Recipe" ON "Ingredient"."recipeId" = "Recipe".id
+        WHERE "Recipe"."userId" = ${userId}
+        ORDER BY "Ingredient".name
       `,
     ]);
 

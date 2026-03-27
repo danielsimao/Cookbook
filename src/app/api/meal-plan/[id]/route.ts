@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getUserId } from "@/lib/auth";
 
 export async function DELETE(
   _request: NextRequest,
@@ -7,6 +8,18 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    const userId = await getUserId();
+
+    // Verify ownership before deleting
+    const item = await prisma.mealPlanItem.findFirst({
+      where: { id, userId },
+    });
+    if (!item) {
+      return NextResponse.json(
+        { error: "Meal plan item not found" },
+        { status: 404 }
+      );
+    }
 
     await prisma.mealPlanItem.delete({ where: { id } });
 
@@ -25,7 +38,19 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
+    const userId = await getUserId();
     const { date, mealType } = await request.json();
+
+    // Verify ownership before updating
+    const existing = await prisma.mealPlanItem.findFirst({
+      where: { id, userId },
+    });
+    if (!existing) {
+      return NextResponse.json(
+        { error: "Meal plan item not found" },
+        { status: 404 }
+      );
+    }
 
     const item = await prisma.mealPlanItem.update({
       where: { id },

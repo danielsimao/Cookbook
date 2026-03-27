@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getUserId } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,8 +15,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const userId = await getUserId();
+
     const items = await prisma.mealPlanItem.findMany({
       where: {
+        userId,
         date: {
           gte: new Date(startDate),
           lte: new Date(endDate),
@@ -49,11 +53,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const userId = await getUserId();
+
     const item = await prisma.mealPlanItem.create({
       data: {
         date: new Date(date),
         mealType,
         recipeId,
+        userId,
       },
       include: {
         recipe: true,

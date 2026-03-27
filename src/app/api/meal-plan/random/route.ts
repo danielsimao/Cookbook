@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getUserId } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,7 +13,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const recipes = await prisma.recipe.findMany();
+    const userId = await getUserId();
+
+    const recipes = await prisma.recipe.findMany({
+      where: { userId },
+    });
 
     if (recipes.length === 0) {
       return NextResponse.json(
@@ -24,7 +29,7 @@ export async function POST(request: NextRequest) {
     const types = mealTypes ?? ["breakfast", "lunch", "dinner"];
     const start = new Date(startDate);
     const end = new Date(endDate);
-    const items: { date: Date; mealType: string; recipeId: string }[] = [];
+    const items: { date: Date; mealType: string; recipeId: string; userId: string }[] = [];
 
     for (
       let d = new Date(start);
@@ -38,6 +43,7 @@ export async function POST(request: NextRequest) {
           date: new Date(d),
           mealType: type,
           recipeId: randomRecipe.id,
+          userId,
         });
       }
     }

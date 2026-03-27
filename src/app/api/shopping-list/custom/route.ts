@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { startOfWeek, subWeeks } from "date-fns";
 import { prisma } from "@/lib/db";
+import { getUserId } from "@/lib/auth";
 
 // GET — fetch custom items for a week
 export async function GET(req: NextRequest) {
+  const userId = await getUserId();
   const startDate = req.nextUrl.searchParams.get("startDate");
   if (!startDate) {
     return NextResponse.json({ error: "startDate required" }, { status: 400 });
@@ -14,11 +16,11 @@ export async function GET(req: NextRequest) {
   // Cleanup old weeks (>2 weeks ago)
   const cutoff = subWeeks(new Date(), 2);
   await prisma.customShoppingItem.deleteMany({
-    where: { weekStart: { lt: cutoff } },
+    where: { userId, weekStart: { lt: cutoff } },
   }).catch(() => {});
 
   const items = await prisma.customShoppingItem.findMany({
-    where: { weekStart },
+    where: { userId, weekStart },
     orderBy: { createdAt: "asc" },
   });
 
@@ -27,6 +29,7 @@ export async function GET(req: NextRequest) {
 
 // POST — add a custom item
 export async function POST(req: NextRequest) {
+  const userId = await getUserId();
   const { weekStart: weekStartStr, name } = await req.json();
   if (!weekStartStr || !name?.trim()) {
     return NextResponse.json({ error: "weekStart and name required" }, { status: 400 });
@@ -37,7 +40,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const item = await prisma.customShoppingItem.create({
-      data: { weekStart, name: trimmedName },
+      data: { userId, weekStart, name: trimmedName },
     });
     return NextResponse.json(item);
   } catch (err: unknown) {
@@ -51,6 +54,7 @@ export async function POST(req: NextRequest) {
 
 // PUT — toggle checked state
 export async function PUT(req: NextRequest) {
+  const userId = await getUserId();
   const { weekStart: weekStartStr, name, checked } = await req.json();
   if (!weekStartStr || !name) {
     return NextResponse.json({ error: "weekStart and name required" }, { status: 400 });
@@ -59,7 +63,7 @@ export async function PUT(req: NextRequest) {
   const weekStart = startOfWeek(new Date(weekStartStr), { weekStartsOn: 1 });
 
   const item = await prisma.customShoppingItem.update({
-    where: { weekStart_name: { weekStart, name } },
+    where: { userId_weekStart_name: { userId, weekStart, name } },
     data: { checked: Boolean(checked) },
   });
 
@@ -68,6 +72,7 @@ export async function PUT(req: NextRequest) {
 
 // DELETE — remove a custom item
 export async function DELETE(req: NextRequest) {
+  const userId = await getUserId();
   const weekStartStr = req.nextUrl.searchParams.get("weekStart");
   const name = req.nextUrl.searchParams.get("name");
   if (!weekStartStr || !name) {
@@ -77,7 +82,7 @@ export async function DELETE(req: NextRequest) {
   const weekStart = startOfWeek(new Date(weekStartStr), { weekStartsOn: 1 });
 
   await prisma.customShoppingItem.delete({
-    where: { weekStart_name: { weekStart, name } },
+    where: { userId_weekStart_name: { userId, weekStart, name } },
   });
 
   return NextResponse.json({ ok: true });

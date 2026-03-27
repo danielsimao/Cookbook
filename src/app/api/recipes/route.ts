@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getUserId } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
+    const userId = await getUserId();
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search");
     const cuisine = searchParams.get("cuisine");
@@ -10,7 +12,7 @@ export async function GET(request: NextRequest) {
     const tag = searchParams.get("tag");
     const favorite = searchParams.get("favorite");
 
-    const where: Record<string, unknown> = {};
+    const where: Record<string, unknown> = { userId };
 
     if (search) {
       where.title = { contains: search, mode: "insensitive" };
@@ -45,10 +47,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const userId = await getUserId();
     const data = await request.json();
 
     const recipe = await prisma.recipe.create({
       data: {
+        userId,
         title: data.title,
         description: data.description ?? null,
         sourceUrl: data.sourceUrl ?? null,

@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getUserId } from "@/lib/auth";
 
 export async function GET() {
   try {
+    const userId = await getUserId();
     const items = await prisma.pantryItem.findMany({
+      where: { userId },
       orderBy: { name: "asc" },
     });
 
@@ -18,6 +21,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const userId = await getUserId();
     const { name } = await request.json();
 
     if (!name) {
@@ -28,9 +32,9 @@ export async function POST(request: NextRequest) {
     }
 
     const item = await prisma.pantryItem.upsert({
-      where: { name },
+      where: { userId_name: { userId, name } },
       update: {},
-      create: { name },
+      create: { userId, name },
     });
 
     return NextResponse.json(item, { status: 201 });
@@ -44,6 +48,7 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const userId = await getUserId();
     const { searchParams } = new URL(request.url);
     const name = searchParams.get("name");
 
@@ -55,7 +60,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     await prisma.pantryItem.delete({
-      where: { name },
+      where: { userId_name: { userId, name } },
     });
 
     return NextResponse.json({ success: true });

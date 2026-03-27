@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { mergeIngredients } from "@/lib/ai";
+import { getUserId } from "@/lib/auth";
 import { startOfWeek } from "date-fns";
 import { createHash } from "crypto";
 
@@ -10,6 +11,7 @@ function computeHash(ids: string[]): string {
 
 export async function GET(request: NextRequest) {
   try {
+    const userId = await getUserId();
     const { searchParams } = new URL(request.url);
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
@@ -28,6 +30,7 @@ export async function GET(request: NextRequest) {
     // Fetch meal plan items for this date range
     const mealPlanItems = await prisma.mealPlanItem.findMany({
       where: {
+        userId,
         date: { gte: start, lte: end },
       },
       include: {
@@ -80,7 +83,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Pantry check — always fresh
-    const pantryItems = await prisma.pantryItem.findMany();
+    const pantryItems = await prisma.pantryItem.findMany({ where: { userId } });
     type PantryRecord = (typeof pantryItems)[number];
     const pantryNames = pantryItems.map((p: PantryRecord) => p.name.toLowerCase());
 

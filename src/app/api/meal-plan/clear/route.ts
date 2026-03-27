@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getUserId } from "@/lib/auth";
 
 export async function DELETE(request: NextRequest) {
   try {
@@ -14,8 +15,11 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    const userId = await getUserId();
+
     const result = await prisma.mealPlanItem.deleteMany({
       where: {
+        userId,
         date: {
           gte: new Date(startDate),
           lte: new Date(endDate),

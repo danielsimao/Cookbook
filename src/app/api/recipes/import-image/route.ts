@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getUserId } from "@/lib/auth";
 import { extractRecipeFromImage } from "@/lib/ai";
 
 export async function POST(request: NextRequest) {
@@ -18,10 +19,12 @@ export async function POST(request: NextRequest) {
     const base64 = Buffer.from(bytes).toString("base64");
     const mimeType = file.type || "image/jpeg";
 
+    const userId = await getUserId();
     const parsed = await extractRecipeFromImage(base64, mimeType);
 
     const recipe = await prisma.recipe.create({
       data: {
+        userId,
         title: parsed.title,
         description: parsed.description ?? null,
         sourceUrl: null,

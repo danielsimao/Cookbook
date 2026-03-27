@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getUserId } from "@/lib/auth";
 import { smartSearch } from "@/lib/ai";
 
 export async function POST(request: NextRequest) {
   try {
+    const userId = await getUserId();
     const { query } = await request.json();
 
     if (!query) {
@@ -14,6 +16,7 @@ export async function POST(request: NextRequest) {
     }
 
     const recipes = await prisma.recipe.findMany({
+      where: { userId },
       include: { ingredients: true, steps: true },
     });
 

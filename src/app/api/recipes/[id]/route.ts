@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getUserId } from "@/lib/auth";
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const userId = await getUserId();
     const { id } = await params;
 
     const recipe = await prisma.recipe.findUnique({
@@ -13,9 +15,9 @@ export async function GET(
       include: { ingredients: true, steps: true },
     });
 
-    if (!recipe) {
+    if (!recipe || recipe.userId !== userId) {
       return NextResponse.json(
-        { error: "Recipe not found" },
+        { error: "Not found" },
         { status: 404 }
       );
     }
@@ -34,8 +36,18 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const userId = await getUserId();
     const { id } = await params;
     const data = await request.json();
+
+    // Verify ownership
+    const existing = await prisma.recipe.findUnique({ where: { id } });
+    if (!existing || existing.userId !== userId) {
+      return NextResponse.json(
+        { error: "Not found" },
+        { status: 404 }
+      );
+    }
 
     // Delete old ingredients and steps
     await prisma.ingredient.deleteMany({ where: { recipeId: id } });
@@ -95,7 +107,17 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const userId = await getUserId();
     const { id } = await params;
+
+    // Verify ownership
+    const existing = await prisma.recipe.findUnique({ where: { id } });
+    if (!existing || existing.userId !== userId) {
+      return NextResponse.json(
+        { error: "Not found" },
+        { status: 404 }
+      );
+    }
 
     await prisma.recipe.delete({ where: { id } });
 
