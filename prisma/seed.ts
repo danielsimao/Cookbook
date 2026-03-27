@@ -8,6 +8,10 @@ async function main() {
   const adminPassword = process.env.ADMIN_PASSWORD || process.env.APP_PASSWORD || "cookbook123";
   const adminName = process.env.ADMIN_NAME || "Admin";
 
+  if (!process.env.ADMIN_PASSWORD && !process.env.APP_PASSWORD) {
+    console.warn("WARNING: No ADMIN_PASSWORD or APP_PASSWORD set. Using default password. Change this immediately!");
+  }
+
   console.log(`Seeding admin user: ${adminEmail}`);
 
   // Create or find admin user

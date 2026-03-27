@@ -18,6 +18,10 @@ async function main() {
   const adminPassword = process.env.ADMIN_PASSWORD || process.env.APP_PASSWORD || "cookbook123";
   const adminName = process.env.ADMIN_NAME || "Admin";
 
+  if (!process.env.ADMIN_PASSWORD && !process.env.APP_PASSWORD) {
+    console.warn("WARNING: No ADMIN_PASSWORD or APP_PASSWORD set. Using default password. Change this immediately!");
+  }
+
   console.log("Step 1: Create User table...");
   await prisma.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS "User" (
@@ -131,7 +135,6 @@ async function main() {
 
   console.log("\nMigration complete!");
   console.log(`Admin email: ${adminEmail}`);
-  console.log(`Admin password: ${adminPassword}`);
 }
 
 main()
