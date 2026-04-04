@@ -207,6 +207,13 @@ function NewRecipePage() {
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <h1 className="font-display text-2xl font-bold hand-underline">Add Recipe</h1>
+        <div className="flex-1" />
+        <Link
+          href="/recipes/bulk-import"
+          className="font-hand text-base text-primary hover:underline"
+        >
+          Bulk Import
+        </Link>
       </div>
 
       {/* Tab selector */}
