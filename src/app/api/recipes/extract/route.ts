@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
 import { getUserId } from "@/lib/auth";
 import { scrapeUrl } from "@/lib/scraper";
 import { extractRecipeFromHtml } from "@/lib/ai";
@@ -7,11 +8,23 @@ import { extractRecipeFromHtml } from "@/lib/ai";
 // Used by the bulk import flow where the user reviews before saving.
 export async function POST(request: NextRequest) {
   try {
-    await getUserId();
+    const userId = await getUserId();
     const { url } = await request.json();
 
     if (!url) {
       return NextResponse.json({ error: "URL is required" }, { status: 400 });
+    }
+
+    // Check for existing recipe with this URL (already imported)
+    const existing = await prisma.recipe.findFirst({
+      where: { sourceUrl: url, userId },
+      select: { id: true, title: true },
+    });
+    if (existing) {
+      return NextResponse.json(
+        { duplicate: true, existingId: existing.id, existingTitle: existing.title },
+        { status: 409 }
+      );
     }
 
     const { html, imageUrl: scrapedImageUrl } = await scrapeUrl(url);

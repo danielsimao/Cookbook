@@ -66,13 +66,21 @@ export default function BulkImportPage() {
   const processedCount = items.filter((i) => i.status === "done" || i.status === "failed").length;
   const readyCount = items.filter((i) => i.status === "done").length;
 
-  async function extractOne(url: string): Promise<{ ok: true; recipe: ExtractedRecipe } | { ok: false; error: string }> {
+  async function extractOne(url: string): Promise<
+    | { ok: true; recipe: ExtractedRecipe }
+    | { ok: false; error: string }
+    | { duplicate: true; existingTitle: string }
+  > {
     try {
       const res = await fetch("/api/recipes/extract", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
       });
+      if (res.status === 409) {
+        const data = await res.json().catch(() => ({}));
+        return { duplicate: true, existingTitle: data.existingTitle || "existing recipe" };
+      }
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         return { ok: false, error: data.error || "Failed to extract" };
@@ -130,6 +138,9 @@ export default function BulkImportPage() {
       setItems((prev) =>
         prev.map((item, idx) => {
           if (idx !== i) return item;
+          if ("duplicate" in result) {
+            return { ...item, status: "skipped", error: `Already imported as "${result.existingTitle}"` };
+          }
           return result.ok
             ? { ...item, status: "done", recipe: result.recipe }
             : { ...item, status: "failed", error: result.error };
@@ -159,6 +170,9 @@ export default function BulkImportPage() {
     setItems((prev) =>
       prev.map((it, idx) => {
         if (idx !== index) return it;
+        if ("duplicate" in result) {
+          return { ...it, status: "skipped", error: `Already imported as "${result.existingTitle}"` };
+        }
         return result.ok
           ? { ...it, status: "done", recipe: result.recipe }
           : { ...it, status: "failed", error: result.error };
@@ -365,13 +379,19 @@ function RecipeRow({
 
   if (item.status === "skipped") {
     return (
-      <div className="paper-card p-3 flex items-center gap-3 opacity-50">
+      <div className="paper-card p-3 flex items-center gap-3 opacity-60">
         <X className="h-4 w-4 text-muted-foreground shrink-0" />
-        <span className="text-sm text-muted-foreground truncate flex-1">{item.recipe?.title || item.url}</span>
-        <span className="font-hand text-xs text-muted-foreground">Skipped</span>
-        <button onClick={onUnskip} className="font-hand text-sm text-primary hover:underline">
-          Undo
-        </button>
+        <div className="flex-1 min-w-0">
+          <span className="text-sm text-muted-foreground truncate block">{item.recipe?.title || item.url}</span>
+          {item.error && (
+            <span className="text-xs text-muted-foreground/70">{item.error}</span>
+          )}
+        </div>
+        {item.recipe && (
+          <button onClick={onUnskip} className="font-hand text-sm text-primary hover:underline shrink-0">
+            Undo
+          </button>
+        )}
       </div>
     );
   }

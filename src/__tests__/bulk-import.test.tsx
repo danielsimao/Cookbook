@@ -310,6 +310,34 @@ describe("Bulk Import — Processing Phase", () => {
     });
   });
 
+  // DB-side duplicate detection
+  it("URLs already imported in DB return 409 and are auto-skipped", async () => {
+    global.fetch = vi.fn().mockImplementation((url: string) => {
+      if (typeof url === "string" && url.includes("/api/recipes/extract")) {
+        return Promise.resolve({
+          ok: false,
+          status: 409,
+          json: () => Promise.resolve({
+            duplicate: true,
+            existingId: "r1",
+            existingTitle: "Old Recipe",
+          }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    });
+    const user = userEvent.setup();
+
+    render(<BulkImportPage />);
+
+    await user.type(screen.getByPlaceholderText(/paste.*url/i), "https://a.com/already-imported");
+    await user.click(screen.getByRole("button", { name: /start import/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/already imported as "Old Recipe"/i)).toBeInTheDocument();
+    });
+  });
+
   // BI13
   it("BI13: duplicate URLs within the batch are auto-skipped", async () => {
     global.fetch = setupFetch();
@@ -393,9 +421,9 @@ describe("Bulk Import — Review Phase", () => {
 
     await user.click(screen.getByRole("button", { name: /skip/i }));
 
-    // Recipe should be marked as skipped
+    // Recipe should be marked as skipped — Undo button appears
     await waitFor(() => {
-      expect(screen.getByText(/skipped/i)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /undo/i })).toBeInTheDocument();
     });
   });
 
@@ -414,11 +442,12 @@ describe("Bulk Import — Review Phase", () => {
 
     // Skip then un-skip
     await user.click(screen.getByRole("button", { name: /skip/i }));
-    await waitFor(() => expect(screen.getByText(/skipped/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("button", { name: /undo/i })).toBeInTheDocument());
 
-    await user.click(screen.getByRole("button", { name: /undo|un-skip|include/i }));
+    await user.click(screen.getByRole("button", { name: /undo/i }));
     await waitFor(() => {
-      expect(screen.queryByText(/skipped/i)).not.toBeInTheDocument();
+      // Back to expanded/collapsed done state — Skip button re-appears
+      expect(screen.getByRole("button", { name: /skip/i })).toBeInTheDocument();
     });
   });
 });
