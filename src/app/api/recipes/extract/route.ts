@@ -32,8 +32,25 @@ export async function POST(request: NextRequest) {
       steps: parsed.steps ?? [],
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to extract recipe";
     console.error("[api/recipes/extract] Extract failed:", error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    const raw = error instanceof Error ? error.message : String(error);
+
+    // Map internal errors to user-friendly messages
+    let userMessage = "Could not extract recipe from this URL. The page may not contain a recipe, or the site may block automated access.";
+    let status = 500;
+
+    const lower = raw.toLowerCase();
+    if (lower.includes("enotfound") || lower.includes("econnrefused") || lower.includes("failed to fetch")) {
+      userMessage = "Could not reach this URL. Check that it is publicly accessible.";
+      status = 502;
+    } else if (lower.includes("rate limit")) {
+      userMessage = "Too many imports right now. Please wait a minute and try again.";
+      status = 429;
+    } else if (lower.includes("api key") || lower.includes("unauthorized")) {
+      userMessage = "Recipe extraction is temporarily unavailable.";
+      status = 503;
+    }
+
+    return NextResponse.json({ error: userMessage }, { status });
   }
 }

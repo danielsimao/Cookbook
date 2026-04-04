@@ -52,16 +52,16 @@ export default function BulkImportPage() {
   const [saving, setSaving] = useState(false);
   const stopRef = useRef(false);
 
-  // Warn on close during processing
+  // Warn on close during processing or saving
   useEffect(() => {
-    if (phase !== "processing") return;
+    if (phase !== "processing" && !saving) return;
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue = "";
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [phase]);
+  }, [phase, saving]);
 
   const processedCount = items.filter((i) => i.status === "done" || i.status === "failed").length;
   const readyCount = items.filter((i) => i.status === "done").length;
@@ -77,7 +77,15 @@ export default function BulkImportPage() {
         const data = await res.json().catch(() => ({}));
         return { ok: false, error: data.error || "Failed to extract" };
       }
-      const recipe = await res.json();
+      const raw = await res.json();
+      // Defensive validation — AI responses can be malformed
+      const recipe: ExtractedRecipe = {
+        ...raw,
+        ingredients: Array.isArray(raw.ingredients) ? raw.ingredients : [],
+        steps: Array.isArray(raw.steps) ? raw.steps : [],
+        tags: Array.isArray(raw.tags) ? raw.tags : [],
+        servings: typeof raw.servings === "number" ? raw.servings : 4,
+      };
       return { ok: true, recipe };
     } catch (err) {
       return { ok: false, error: err instanceof Error ? err.message : "Network error" };
@@ -134,13 +142,20 @@ export default function BulkImportPage() {
 
   function handleStop() {
     stopRef.current = true;
+    setItems((prev) =>
+      prev.map((item) =>
+        item.status === "queued"
+          ? { ...item, status: "failed", error: "Cancelled by user" }
+          : item
+      )
+    );
     setPhase("review");
   }
 
   async function handleRetry(index: number) {
+    const url = items[index].url;
     setItems((prev) => prev.map((item, idx) => (idx === index ? { ...item, status: "processing", error: undefined } : item)));
-    const item = items[index];
-    const result = await extractOne(item.url);
+    const result = await extractOne(url);
     setItems((prev) =>
       prev.map((it, idx) => {
         if (idx !== index) return it;
@@ -159,7 +174,9 @@ export default function BulkImportPage() {
     setItems((prev) =>
       prev.map((item, idx) => {
         if (idx !== index) return item;
-        return { ...item, status: item.recipe ? "done" : "failed" };
+        // Skip is only reachable from "done", so item.recipe is always set
+        if (!item.recipe) return item;
+        return { ...item, status: "done" };
       })
     );
   }
@@ -179,12 +196,17 @@ export default function BulkImportPage() {
 
   async function handleSaveAll() {
     setSaving(true);
-    const toSave = items.filter((i) => i.status === "done" && i.recipe);
+    const toSaveIndices = items
+      .map((item, idx) => ({ item, idx }))
+      .filter(({ item }) => item.status === "done" && item.recipe);
 
-    try {
-      for (const item of toSave) {
-        const r = item.recipe!;
-        await fetch("/api/recipes", {
+    let successes = 0;
+    const failures: number[] = [];
+
+    for (const { item, idx } of toSaveIndices) {
+      const r = item.recipe!;
+      try {
+        const res = await fetch("/api/recipes", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -202,13 +224,36 @@ export default function BulkImportPage() {
             steps: r.steps,
           }),
         });
+        if (!res.ok) {
+          failures.push(idx);
+        } else {
+          successes++;
+        }
+      } catch {
+        failures.push(idx);
       }
-      toast(`Saved ${toSave.length} recipe${toSave.length === 1 ? "" : "s"}`, "success");
+    }
+
+    // Mark failed saves back to a visible state so the user can retry
+    if (failures.length > 0) {
+      setItems((prev) =>
+        prev.map((item, idx) =>
+          failures.includes(idx)
+            ? { ...item, status: "failed", error: "Failed to save — try again" }
+            : item
+        )
+      );
+    }
+
+    setSaving(false);
+
+    if (failures.length === 0) {
+      toast(`Saved ${successes} recipe${successes === 1 ? "" : "s"}`, "success");
       router.push("/recipes");
-    } catch {
-      toast("Some recipes failed to save", "error");
-    } finally {
-      setSaving(false);
+    } else if (successes > 0) {
+      toast(`Saved ${successes}, ${failures.length} failed`, "error");
+    } else {
+      toast("Failed to save recipes", "error");
     }
   }
 

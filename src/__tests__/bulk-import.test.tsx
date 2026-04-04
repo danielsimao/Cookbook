@@ -177,18 +177,29 @@ describe("Bulk Import — Processing Phase", () => {
   });
 
   // BI8
-  it("BI8: URLs are processed sequentially", async () => {
-    let callCount = 0;
-    global.fetch = vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+  it("BI8: URLs are processed sequentially (not in parallel)", async () => {
+    // Track when each call starts — if parallel, all start immediately
+    const callStartTimes: number[] = [];
+    let resolveFirst: ((v: unknown) => void) | null = null;
+
+    global.fetch = vi.fn().mockImplementation((url: string) => {
       if (typeof url === "string" && url.includes("/api/recipes/extract")) {
-        callCount++;
-        const currentCall = callCount;
-        return new Promise((resolve) =>
-          setTimeout(() => resolve({
-            ok: true,
-            json: () => Promise.resolve({ ...mockExtractedRecipe, title: `Recipe ${currentCall}` }),
-          }), 10)
-        );
+        callStartTimes.push(Date.now());
+        const callNum = callStartTimes.length;
+        if (callNum === 1) {
+          // First call hangs until we resolve it manually
+          return new Promise((resolve) => {
+            resolveFirst = () => resolve({
+              ok: true,
+              json: () => Promise.resolve({ ...mockExtractedRecipe, title: "Recipe 1" }),
+            });
+          });
+        }
+        // Second call resolves immediately
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ ...mockExtractedRecipe, title: "Recipe 2" }),
+        });
       }
       return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
     });
@@ -199,17 +210,28 @@ describe("Bulk Import — Processing Phase", () => {
     await user.type(screen.getByPlaceholderText(/paste.*url/i), "https://a.com/r1\nhttps://b.com/r2");
     await user.click(screen.getByRole("button", { name: /start import/i }));
 
-    // Wait for both to complete
+    // Wait for first call to have been made
+    await waitFor(() => {
+      expect(callStartTimes.length).toBeGreaterThanOrEqual(1);
+    });
+
+    // While first is pending, second should NOT have been called yet
+    // Give time for any parallel behavior to manifest
+    await new Promise((r) => setTimeout(r, 50));
+    expect(callStartTimes.length).toBe(1);
+
+    // Now resolve the first call
+    resolveFirst!(undefined);
+
+    // Second call should fire after the first resolves
+    await waitFor(() => {
+      expect(callStartTimes.length).toBe(2);
+    });
+
     await waitFor(() => {
       expect(screen.getByText("Recipe 1")).toBeInTheDocument();
       expect(screen.getByText("Recipe 2")).toBeInTheDocument();
     });
-
-    // Verify calls were sequential — extract was called with each URL
-    const extractCalls = (global.fetch as ReturnType<typeof vi.fn>).mock.calls.filter(
-      ([u]: [string]) => typeof u === "string" && u.includes("/api/recipes/extract")
-    );
-    expect(extractCalls).toHaveLength(2);
   });
 
   // BI9 — spinner tested via BI7 (processing state visible)
@@ -247,8 +269,22 @@ describe("Bulk Import — Processing Phase", () => {
   });
 
   // BI12
-  it("BI12: 'Stop' button halts processing", async () => {
-    global.fetch = setupFetch({ neverResolve: true });
+  it("BI12: 'Stop' button halts processing and cancels queued items", async () => {
+    // First URL resolves, subsequent never resolve — simulates slow processing
+    let callCount = 0;
+    global.fetch = vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+      if (typeof url === "string" && url.includes("/api/recipes/extract")) {
+        callCount++;
+        if (callCount === 1) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ ...mockExtractedRecipe, title: "First" }),
+          });
+        }
+        return new Promise(() => {}); // Never resolves
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    });
     const user = userEvent.setup();
 
     render(<BulkImportPage />);
@@ -259,8 +295,18 @@ describe("Bulk Import — Processing Phase", () => {
     );
     await user.click(screen.getByRole("button", { name: /start import/i }));
 
+    // Wait for Stop button and first URL to finish processing
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /stop/i })).toBeInTheDocument();
+      expect(screen.getByText("First")).toBeInTheDocument();
+    });
+
+    // Click Stop
+    await user.click(screen.getByRole("button", { name: /stop/i }));
+
+    // Queued items should be marked as cancelled/failed
+    await waitFor(() => {
+      expect(screen.getByText(/cancelled by user/i)).toBeInTheDocument();
     });
   });
 
@@ -438,6 +484,58 @@ describe("Bulk Import — Save Phase", () => {
     await waitFor(() => {
       expect(mockPush).toHaveBeenCalledWith("/recipes");
     });
+  });
+
+  // Mid-batch save failure handling
+  it("Save All: handles partial failures without losing data", async () => {
+    let saveCount = 0;
+    global.fetch = vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+      if (typeof url === "string" && url.includes("/api/recipes/extract")) {
+        const body = JSON.parse(opts!.body as string);
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ ...mockExtractedRecipe, title: `Recipe from ${body.url}` }),
+        });
+      }
+      if (typeof url === "string" && url === "/api/recipes" && opts?.method === "POST") {
+        saveCount++;
+        // Second save fails
+        if (saveCount === 2) {
+          return Promise.resolve({
+            ok: false,
+            status: 500,
+            json: () => Promise.resolve({ error: "DB error" }),
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ id: `saved-${saveCount}` }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    });
+    const user = userEvent.setup();
+
+    render(<BulkImportPage />);
+
+    await user.type(
+      screen.getByPlaceholderText(/paste.*url/i),
+      "https://a.com/r1\nhttps://b.com/r2"
+    );
+    await user.click(screen.getByRole("button", { name: /start import/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /save 2 recipes/i })).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: /save 2 recipes/i }));
+
+    // User should NOT be redirected when there are failures
+    await waitFor(() => {
+      // Failed recipe shows up with retry available
+      expect(screen.getByText(/failed to save/i)).toBeInTheDocument();
+    });
+    expect(mockPush).not.toHaveBeenCalled();
   });
 
   // BI21
