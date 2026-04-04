@@ -63,7 +63,9 @@ export default function BulkImportPage() {
     return () => window.removeEventListener("beforeunload", handler);
   }, [phase, saving]);
 
-  const processedCount = items.filter((i) => i.status === "done" || i.status === "failed").length;
+  const processedCount = items.filter(
+    (i) => i.status === "done" || i.status === "failed" || i.status === "skipped"
+  ).length;
   const readyCount = items.filter((i) => i.status === "done").length;
 
   async function extractOne(url: string): Promise<
